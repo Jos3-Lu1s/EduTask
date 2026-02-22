@@ -1,0 +1,4 @@
+firebase-admin
+requests
+python-dotenv
+tkcalendar
