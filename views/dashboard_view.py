@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
+from PIL import Image, ImageTk
+import urllib.request
+from io import BytesIO
 
 class DashboardView(ttk.Frame):
     def __init__(self, parent, auth_manager, db_manager, on_logout):
@@ -24,6 +27,18 @@ class DashboardView(ttk.Frame):
         estilo.map("Peligro.TButton", background=[("active", "#C0392B")])
         estilo.configure("Exito.TButton", font=("Segoe UI", 10, "bold"), background="#2ECC71", foreground="white")
         estilo.map("Exito.TButton", background=[("active", "#27AE60")])
+
+        try:
+            imagen_original = Image.open("assets/image.jpg")
+
+            imagen_original = imagen_original.resize((50, 50), Image.Resampling.LANCZOS)
+            
+            self.img_fila = ImageTk.PhotoImage(imagen_original)
+            estilo.configure("Treeview", rowheight=55,) 
+            
+        except Exception as e:
+            print(f"Error cargando la imagen: {e}")
+            self.img_fila = None
 
     def _construir_interfaz(self):
         # --- ENCABEZADO ---
@@ -66,6 +81,12 @@ class DashboardView(ttk.Frame):
         )
         self.entry_fecha.pack(pady=(0, 20), ipady=3)
 
+        self.entry_fecha.pack(pady=(0, 20), ipady=3)
+
+        ttk.Label(frame_form, text="Link de Imagen (Opcional):", style="Normal.TLabel").pack(anchor="w")
+        self.entry_link_img = ttk.Entry(frame_form, width=30, font=("Segoe UI", 11))
+        self.entry_link_img.pack(pady=(0, 20), ipady=3)
+
         btn_agregar = ttk.Button(frame_form, text="Agregar Tarea", style="Principal.TButton", command=self.agregar_tarea)
         btn_agregar.pack(fill="x")
 
@@ -75,7 +96,11 @@ class DashboardView(ttk.Frame):
 
         # Columnas
         columnas = ("titulo", "descripcion", "fecha", "estado")
-        self.tabla = ttk.Treeview(frame_tabla, columns=columnas, show="headings", selectmode="browse")
+        
+        self.tabla = ttk.Treeview(frame_tabla, columns=columnas, show="tree headings", selectmode="browse")
+        
+        self.tabla.heading("#0", text="Imagen")
+        self.tabla.column("#0", width=70, anchor="center")
         
         self.tabla.heading("titulo", text="Título")
         self.tabla.heading("descripcion", text="Descripción")
@@ -105,13 +130,35 @@ class DashboardView(ttk.Frame):
         """Limpia la tabla y carga las tareas desde Firebase."""
         for item in self.tabla.get_children():
             self.tabla.delete(item)
-            
+
+        if not hasattr(self, 'imagenes_cache'):
+            self.imagenes_cache = {}
+        self.imagenes_cache.clear()
+
         try:
-            # Traemos solo las tareas del usuario logueado
             tareas = self.db_manager.get_user_tasks(self.user['uid'])
             for t in tareas:
-                # Usamos el ID del documento como 'iid' del item en la tabla
-                self.tabla.insert("", "end", iid=t['id'], values=(t['title'], t['description'], t['due_date'], t['status']))
+                imagen_a_mostrar = self.img_fila 
+
+                enlace = t.get('image_url', "") 
+                if enlace:
+                    try:
+                        with urllib.request.urlopen(enlace) as respuesta:
+                            datos = respuesta.read()
+                        img_web = Image.open(BytesIO(datos)).resize((50, 50), Image.Resampling.LANCZOS)
+                        imagen_a_mostrar = ImageTk.PhotoImage(img_web)
+                    except Exception as e:
+                        print(f"Error descargando imagen para tarea {t['id']}: {e}")
+
+                self.imagenes_cache[t['id']] = imagen_a_mostrar
+
+                self.tabla.insert(
+                    "", 
+                    "end", 
+                    iid=t['id'], 
+                    image=imagen_a_mostrar, 
+                    values=(t['title'], t['description'], t['due_date'], t['status'])
+                )
         except Exception as e:
             messagebox.showerror("Error", f"No se pudieron cargar las tareas: {e}")
 
@@ -119,21 +166,23 @@ class DashboardView(ttk.Frame):
         titulo = self.entry_titulo.get().strip()
         desc = self.entry_desc.get("1.0", tk.END).strip()
         fecha = self.entry_fecha.get().strip()
+        link_img = self.entry_link_img.get().strip()
 
         if not titulo or not fecha:
             messagebox.showwarning("Campos incompletos", "El título y la fecha son obligatorios.")
             return
 
         try:
-            self.db_manager.create_task(self.user['uid'], titulo, desc, fecha)
+            self.db_manager.create_task(self.user['uid'], titulo, desc, fecha, link_img) 
             messagebox.showinfo("Éxito", "Tarea agregada correctamente.")
             
             # Limpiar formulario
             self.entry_titulo.delete(0, tk.END)
             self.entry_desc.delete("1.0", tk.END)
             self.entry_fecha.delete(0, tk.END)
+            self.entry_link_img.delete(0, tk.END)
             
-            # Recargar la tabla para ver la nueva tarea
+            # Recargar la tabla
             self.cargar_tareas()
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo guardar la tarea: {e}")

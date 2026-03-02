@@ -7,14 +7,15 @@ class DatabaseManager:
         self.db = get_firestore_client()
         self.collection_name = "tasks"
 
-    def create_task(self, uid, title, description, due_date):
+    def create_task(self, uid, title, description, due_date, image_url=""):
         """Crea una nueva tarea en Firestore vinculada al UID del usuario."""
         task_data = {
             "user_id": uid,
             "title": title,
             "description": description,
             "due_date": due_date,
-            "status": "pendiente"
+            "status": "pendiente",
+            "image_url": image_url
         }
         
         # .add() genera un ID único automáticamente para el documento
