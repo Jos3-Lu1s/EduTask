@@ -38,6 +38,11 @@ class LoginView(ttk.Frame):
         lbl_subtitulo = ttk.Label(self, text="Gestor de Actividades Académicas", style="Normal.TLabel")
         lbl_subtitulo.pack(pady=(0, 30))
 
+        lbl_nombre = ttk.Label(self, text="Nombre (Solo para registro):", style="Normal.TLabel")
+        lbl_nombre.pack(anchor="w")
+        self.entry_nombre = ttk.Entry(self, font=("Segoe UI", 11), width=35)
+        self.entry_nombre.pack(pady=(0, 15), ipady=4)
+
         lbl_correo = ttk.Label(self, text="Correo Electrónico:", style="Normal.TLabel")
         lbl_correo.pack(anchor="w")
         self.entry_correo = ttk.Entry(self, font=("Segoe UI", 11), width=35)
@@ -72,11 +77,12 @@ class LoginView(ttk.Frame):
             messagebox.showerror("Error de Autenticación", f"Credenciales incorrectas o usuario no encontrado.\n\nDetalle: {str(e)}")
 
     def procesar_registro(self):
+        nombre = self.entry_nombre.get().strip()
         correo = self.entry_correo.get().strip()
         password = self.entry_pass.get().strip()
 
-        if not correo or not password:
-            messagebox.showwarning("Campos vacíos", "Por favor ingresa un correo y contraseña para registrarte.")
+        if not nombre or not correo or not password:
+            messagebox.showwarning("Campos vacíos", "Por favor ingresa tu nombre, correo y contraseña para registrarte.")
             return
             
         if len(password) < 6:
@@ -84,9 +90,9 @@ class LoginView(ttk.Frame):
             return
 
         try:
-            self.auth_manager.register_user(correo, password)
+            self.auth_manager.register_user(nombre, correo, password)
             messagebox.showinfo("Éxito", "Cuenta creada correctamente. Ahora puedes iniciar sesión.")
-            # Limpiamos la contraseña por seguridad
-            self.entry_pass.delete(0, tk.END) 
+            self.entry_pass.delete(0, tk.END)
+            self.entry_nombre.delete(0, tk.END)
         except Exception as e:
             messagebox.showerror("Error al Registrar", f"No se pudo crear la cuenta.\n\nDetalle: {str(e)}")

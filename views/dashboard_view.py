@@ -50,7 +50,7 @@ class DashboardView(ttk.Frame):
         btn_logout = ttk.Button(frame_header, text="Cerrar Sesión", style="Secundario.TButton", command=self.procesar_logout)
         btn_logout.pack(side="right")
         
-        ttk.Label(frame_header, text=f"Usuario: {self.user['email']}", style="Normal.TLabel").pack(side="right", padx=20)
+        ttk.Label(frame_header, text=f"Hola, {self.user.get('name', 'Estudiante')}", style="Normal.TLabel").pack(side="right", padx=20)
 
         # --- CUERPO PRINCIPAL (Dividido en 2 columnas) ---
         frame_body = ttk.Frame(self)
