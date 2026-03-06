@@ -8,9 +8,8 @@ class AppWindow(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        # Configuración básica de la ventana principal
         self.title("EduTask - Organización Académica")
-        self.geometry("450x550")
+        self.geometry("450x620") 
         self.configure(bg="#F4F6F9")
         self.resizable(False, False)
 
@@ -32,7 +31,9 @@ class AppWindow(tk.Tk):
         self.vista_actual.pack(fill="both", expand=True)
 
     def mostrar_login(self):
-        self.geometry("450x550")
+        self.geometry("450x620")
+        self.eval('tk::PlaceWindow . center') 
+        
         self.cambiar_vista(
             LoginView, 
             auth_manager=self.auth_manager, 
