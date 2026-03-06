@@ -226,11 +226,17 @@ class LoginView(ttk.Frame):
 
         try:
             self.auth_manager.login_user(correo, password)
-            # Se reinicia el contador
             self.intentos_fallidos = 0 
             self.on_login_success() 
         except Exception as e:
-            # --- LÓGICA DE INTENTOS FALLIDOS ---
+            mensaje_error = str(e)
+            
+            # Error que indica que la cuenta está SUSPENDIDA
+            if "SUSPENDIDA" in mensaje_error:
+                messagebox.showerror("Aviso de Seguridad Crítico", mensaje_error)
+                return
+                
+            # Error normal (usuario no encontrado o contraseña incorrecta)
             self.intentos_fallidos += 1
             
             if self.intentos_fallidos >= 3:
@@ -239,7 +245,7 @@ class LoginView(ttk.Frame):
                 intentos_restantes = 3 - self.intentos_fallidos
                 messagebox.showerror(
                     "Error de Autenticación", 
-                    f"Credenciales incorrectas.\nTe quedan {intentos_restantes} intento(s).\n\nDetalle: {str(e)}"
+                    f"{mensaje_error}\nTe quedan {intentos_restantes} intento(s) antes del bloqueo temporal."
                 )
 
     def _bloquear_interfaz_login(self):
