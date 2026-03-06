@@ -184,6 +184,11 @@ class LoginView(ttk.Frame):
             messagebox.showwarning("Campos vacíos", "Por favor ingresa tu correo y contraseña.")
             return
 
+        patron_correo = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+        if not re.match(patron_correo, correo):
+            messagebox.showwarning("Correo inválido", "El formato del correo electrónico no es válido.")
+            return
+
         try:
             self.auth_manager.login_user(correo, password)
             self.on_login_success() 
@@ -199,6 +204,11 @@ class LoginView(ttk.Frame):
         # Verifica que no haya campos vacíos
         if not nombre or not correo or not password or not confirmacion:
             messagebox.showwarning("Campos vacíos", "Por favor llena todos los campos para registrarte.")
+            return
+        
+        patron_correo = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+        if not re.match(patron_correo, correo):
+            messagebox.showwarning("Correo inválido", "Por favor ingresa un correo electrónico válido (ej. usuario@dominio.com).")
             return
             
         # Verifica términos y condiciones
