@@ -1,48 +1,66 @@
-import requests
-from config.firebase_config import FIREBASE_WEB_API_KEY
+import bcrypt
+from config.firebase_config import get_firestore_client
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 class AuthManager:
     def __init__(self):
-        self.api_key = FIREBASE_WEB_API_KEY
-        self.current_user = None  # Almacenará el UID y token si el login es exitoso
+        self.db = get_firestore_client()
+        self.collection_name = "users" 
+        self.current_user = None
 
     def register_user(self, email, password):
-        """Registra un nuevo usuario en Firebase Auth."""
-        endpoint = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={self.api_key}"
-        payload = {
+        """Registra un nuevo usuario en Firestore encriptando su contraseña."""
+        users_ref = self.db.collection(self.collection_name)
+        
+        # Verificar si el correo ya existe
+        query = users_ref.where(filter=FieldFilter("email", "==", email)).stream()
+        if any(query):
+            raise Exception("Este correo electrónico ya está registrado.")
+
+        # Hashear la contraseña
+        # gensalt() añade un valor aleatorio para hacer el hash único
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+
+        # Guardar en Firestore
+        user_data = {
             "email": email,
-            "password": password,
-            "returnSecureToken": True
+            "password": hashed_password.decode('utf-8') # Guardar el hash como string
         }
         
-        response = requests.post(endpoint, json=payload)
-        data = response.json()
-        
-        if "error" in data:
-            raise Exception(data["error"]["message"])
-            
-        return data["localId"] # Retorna el UID del nuevo usuario
+        update_time, doc_ref = users_ref.add(user_data)
+        return doc_ref.id # Retorna el ID del documento (UID)
 
     def login_user(self, email, password):
-        """Inicia sesión y guarda los datos del usuario actual."""
-        endpoint = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={self.api_key}"
-        payload = {
-            "email": email,
-            "password": password,
-            "returnSecureToken": True
-        }
+        """Inicia sesión buscando en Firestore y verificando el hash."""
+        users_ref = self.db.collection(self.collection_name)
         
-        response = requests.post(endpoint, json=payload)
-        data = response.json()
+        # Buscar al usuario por correo
+        query = users_ref.where(filter=FieldFilter("email", "==", email)).stream()
         
-        if "error" in data:
-            raise Exception(data["error"]["message"])
+        user_doc = None
+        for doc in query:
+            user_doc = doc
+            break
+
+        if not user_doc:
+            raise Exception("Usuario no encontrado.")
+
+        user_data = user_doc.to_dict()
+
+        # Verificar que la contraseña coincida con el hash guardado
+        password_valida = bcrypt.checkpw(
+            password.encode('utf-8'), 
+            user_data["password"].encode('utf-8')
+        )
+
+        if not password_valida:
+            raise Exception("Contraseña incorrecta.")
             
-        # Guardamos la sesión en memoria
         self.current_user = {
-            "uid": data["localId"],
-            "idToken": data["idToken"],
-            "email": data["email"]
+            "uid": user_doc.id,
+            "email": user_data["email"],
+            "idToken": None 
         }
         return self.current_user
 
