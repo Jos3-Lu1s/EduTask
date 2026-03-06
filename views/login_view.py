@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import re
 
 class LoginView(ttk.Frame):
     def __init__(self, parent, auth_manager, on_login_success):
@@ -195,32 +196,47 @@ class LoginView(ttk.Frame):
         password = self.reg_pass.get().strip()
         confirmacion = self.reg_pass_conf.get().strip()
 
+        # Verifica que no haya campos vacíos
         if not nombre or not correo or not password or not confirmacion:
             messagebox.showwarning("Campos vacíos", "Por favor llena todos los campos para registrarte.")
             return
             
+        # Verifica términos y condiciones
         if not self.terminos_aceptados.get():
             messagebox.showwarning("Términos Requeridos", "Debes leer y aceptar los Términos y Condiciones para crear una cuenta.")
             return
 
+        # Verifica que las contraseñas coincidan
         if password != confirmacion:
             messagebox.showwarning("Error", "Las contraseñas no coinciden. Inténtalo de nuevo.")
             return
 
-        if len(password) < 6:
-            messagebox.showwarning("Contraseña débil", "La contraseña debe tener al menos 6 caracteres.")
+        # --- REGLAS DE SEGURIDAD PARA LA CONTRASEÑA ---
+        if len(password) < 8:
+            messagebox.showwarning("Contraseña débil", "La contraseña debe tener al menos 8 caracteres.")
+            return
+        if not re.search(r"[A-Z]", password):
+            messagebox.showwarning("Contraseña débil", "La contraseña debe incluir al menos una letra mayúscula.")
+            return
+        if not re.search(r"[a-z]", password):
+            messagebox.showwarning("Contraseña débil", "La contraseña debe incluir al menos una letra minúscula.")
+            return
+        if not re.search(r"\d", password):
+            messagebox.showwarning("Contraseña débil", "La contraseña debe incluir al menos un número.")
+            return
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>\-_]", password):
+            messagebox.showwarning("Contraseña débil", "La contraseña debe incluir al menos un carácter especial (ej. @, #, $, _, -).")
             return
 
         try:
             self.auth_manager.register_user(nombre, correo, password)
             messagebox.showinfo("Éxito", "Cuenta creada correctamente. Ahora puedes iniciar sesión.")
             
-            # Limpiamos los campos
             self.reg_nombre.delete(0, tk.END)
             self.reg_correo.delete(0, tk.END)
             self.reg_pass.delete(0, tk.END)
             self.reg_pass_conf.delete(0, tk.END)
-            self.terminos_aceptados.set(False)
+            self.terminos_aceptados.set(False) 
             
             self.notebook.select(0)
             self.login_correo.delete(0, tk.END)
