@@ -1,10 +1,10 @@
 import bcrypt
 import logging
 import os
+from datetime import datetime, timedelta, timezone # Importamos manejo de tiempo
 from config.firebase_config import get_firestore_client
 from google.cloud.firestore_v1.base_query import FieldFilter
 
-# --- CONFIGURACIÓN DEL SISTEMA DE LOGS ---
 if not os.path.exists('logs'):
     os.makedirs('logs')
 
@@ -15,29 +15,20 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# --- FUNCIÓN PARA ENMASCARAR CORREOS ---
 def ocultar_correo(email):
-    """Convierte juanperez@gmail.com en ju***z@g***.com por privacidad."""
     try:
         if "@" not in email:
             return "***@***.***"
-            
         nombre, dominio = email.split('@')
-        
-        # Enmascarar el nombre (deja los primeros 2 y el último)
         if len(nombre) > 3:
             nombre_oculto = f"{nombre[:2]}***{nombre[-1]}"
         else:
             nombre_oculto = f"{nombre[0]}***"
-            
-        # Enmascarar el dominio (deja la primera letra del proveedor)
         partes_dominio = dominio.split('.')
         dominio_oculto = f"{partes_dominio[0][0]}***.{'.'.join(partes_dominio[1:])}"
-        
         return f"{nombre_oculto}@{dominio_oculto}"
     except Exception:
-        return "***@***.***" # Fallback por seguridad en caso de error
-# ---------------------------------------
+        return "***@***.***"
 
 class AuthManager:
     def __init__(self):
@@ -60,11 +51,11 @@ class AuthManager:
             "email": email,
             "password": hashed_password.decode('utf-8'),
             "failed_attempts": 0,       
-            "is_suspended": False       
+            "is_suspended": False,
+            "locked_until": None
         }
         
         update_time, doc_ref = users_ref.add(user_data)
-        # Usamos ocultar_correo() en el log
         logging.info(f"NUEVO REGISTRO: Usuario creado exitosamente ({ocultar_correo(email)})")
         return doc_ref.id 
 
@@ -77,7 +68,7 @@ class AuthManager:
             user_doc = doc
             break
 
-        correo_seguro = ocultar_correo(email) # Variable segura para usar en todos los logs
+        correo_seguro = ocultar_correo(email)
 
         if not user_doc:
             logging.warning(f"INTENTO FALLIDO: Correo no registrado ({correo_seguro})")
@@ -86,30 +77,49 @@ class AuthManager:
         user_data = user_doc.to_dict()
         doc_ref = users_ref.document(user_doc.id) 
 
+        # VERIFICAR SUSPENSIÓN PERMANENTE
         if user_data.get("is_suspended", False):
             logging.warning(f"ACCESO DENEGADO: Intento de login en cuenta SUSPENDIDA ({correo_seguro})")
             raise Exception("Tu cuenta está SUSPENDIDA. Por favor, contacta a soporte técnico.")
 
+        # VERIFICAR BLOQUEO TEMPORAL DE 1 MINUTO
+        locked_until = user_data.get("locked_until")
+        if locked_until:
+            now = datetime.now(timezone.utc)
+            if now < locked_until:
+                segundos_restantes = (locked_until - now).seconds
+                logging.warning(f"BLOQUEO ACTIVO: {correo_seguro} intento entrar antes de tiempo.")
+                raise Exception(f"BLOQUEO_TEMPORAL:{segundos_restantes}")
+
+        # VERIFICAR CONTRASEÑA
         password_valida = bcrypt.checkpw(
             password.encode('utf-8'), 
             user_data["password"].encode('utf-8')
         )
 
         if not password_valida:
-            intentos_globales = user_data.get("failed_attempts", 0) + 1
+            intentos = user_data.get("failed_attempts", 0) + 1
             
-            if intentos_globales >= 6:
-                doc_ref.update({"is_suspended": True, "failed_attempts": intentos_globales})
-                logging.error(f"CUENTA SUSPENDIDA: El usuario {correo_seguro} alcanzo los 6 intentos fallidos.")
+            if intentos >= 6:
+                doc_ref.update({"is_suspended": True, "failed_attempts": intentos})
+                logging.error(f"CUENTA SUSPENDIDA: El usuario {correo_seguro} alcanzó 6 intentos.")
                 raise Exception("Has fallado 6 veces consecutivas. Tu cuenta ha sido SUSPENDIDA. Contacta a soporte técnico.")
-            else:
-                doc_ref.update({"failed_attempts": intentos_globales})
-                logging.warning(f"PASSWORD INCORRECTO: Usuario {correo_seguro}. Intento {intentos_globales}/6")
-                raise Exception("Contraseña incorrecta.")
             
-        if user_data.get("failed_attempts", 0) > 0:
-            doc_ref.update({"failed_attempts": 0})
-            logging.info(f"CONTADOR REINICIADO: Login exitoso para {correo_seguro}")
+            elif intentos == 3:
+                lock_time = datetime.now(timezone.utc) + timedelta(minutes=1)
+                doc_ref.update({"failed_attempts": intentos, "locked_until": lock_time})
+                logging.warning(f"BLOQUEO DE 1 MINUTO APLICADO: {correo_seguro} fallo 3 veces.")
+                raise Exception("BLOQUEO_TEMPORAL:60")
+                
+            else:
+                doc_ref.update({"failed_attempts": intentos})
+                logging.warning(f"CONTRASEÑA INCORRECTA: Usuario {correo_seguro}. Intento {intentos}/6")
+                raise Exception(f"Contraseña incorrecta.\nLlevas {intentos} de 6 intentos.")
+            
+        # LOGIN EXITOSO: LIMPIAMOS TODOS LOS ERRORES
+        if user_data.get("failed_attempts", 0) > 0 or user_data.get("locked_until"):
+            doc_ref.update({"failed_attempts": 0, "locked_until": None})
+            logging.info(f"CONTADORES REINICIADOS: Login exitoso para {correo_seguro}")
 
         logging.info(f"LOGIN EXITOSO: Acceso concedido a {correo_seguro}")
 

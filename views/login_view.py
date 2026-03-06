@@ -226,53 +226,40 @@ class LoginView(ttk.Frame):
 
         try:
             self.auth_manager.login_user(correo, password)
-            self.intentos_fallidos = 0 
             self.on_login_success() 
         except Exception as e:
             mensaje_error = str(e)
             
-            # Error que indica que la cuenta está SUSPENDIDA
             if "SUSPENDIDA" in mensaje_error:
                 messagebox.showerror("Aviso de Seguridad Crítico", mensaje_error)
-                return
-                
-            # Error normal (usuario no encontrado o contraseña incorrecta)
-            self.intentos_fallidos += 1
             
-            if self.intentos_fallidos >= 3:
-                self._bloquear_interfaz_login()
+            elif "BLOQUEO_TEMPORAL" in mensaje_error:
+                # Extraemos los segundos del texto que mandó Firestore (ej. "BLOQUEO_TEMPORAL:45")
+                segundos = int(mensaje_error.split(":")[1])
+                self._bloquear_interfaz_login(segundos)
+                
             else:
-                intentos_restantes = 3 - self.intentos_fallidos
-                messagebox.showerror(
-                    "Error de Autenticación", 
-                    f"{mensaje_error}\nTe quedan {intentos_restantes} intento(s) antes del bloqueo temporal."
-                )
+                # Errores normales (contraseña incorrecta 1, 2, 4, 5)
+                messagebox.showerror("Error de Autenticación", mensaje_error)
 
-    def _bloquear_interfaz_login(self):
-        """Desactiva los campos y el botón de inicio de sesión por 1 minuto."""
+    def _bloquear_interfaz_login(self, segundos):
+        """Bloquea la interfaz visual usando el tiempo real de Firestore."""
         messagebox.showwarning(
             "Acceso Bloqueado", 
-            "Has excedido el límite de 3 intentos fallidos.\nPor seguridad, el inicio de sesión se ha bloqueado durante medio minuto."
+            f"Por seguridad, la cuenta está bloqueada temporalmente.\nIntenta de nuevo en {segundos} segundos."
         )
         
-        # Cambiamos el estado de los widgets a 'disabled'
-        self.btn_login.config(state="disabled", text="Bloqueado (30s)...")
+        self.btn_login.config(state="disabled", text=f"Bloqueado ({segundos}s)...")
         self.login_correo.config(state="disabled")
         self.login_pass.config(state="disabled")
         
-        # .after() toma el tiempo en milisegundos (60,000 ms = 1 minuto)
-        # y luego ejecuta la función _desbloquear_interfaz_login
-        self.after(30000, self._desbloquear_interfaz_login)
+        # Multiplicamos por 1000 para convertir los segundos a milisegundos para Tkinter
+        self.after(segundos * 1000, self._desbloquear_interfaz_login)
 
     def _desbloquear_interfaz_login(self):
-        """Vuelve a habilitar la interfaz después del tiempo"""
-        self.intentos_fallidos = 0
-        
         self.btn_login.config(state="normal", text="Entrar")
         self.login_correo.config(state="normal")
         self.login_pass.config(state="normal")
-        
-        messagebox.showinfo("Desbloqueado", "Ya puedes intentar iniciar sesión nuevamente.")
 
     def procesar_registro(self):
         nombre = self.reg_nombre.get().strip()
