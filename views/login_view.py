@@ -9,6 +9,8 @@ class LoginView(ttk.Frame):
         self.auth_manager = auth_manager
         self.on_login_success = on_login_success 
         self.terminos_aceptados = tk.BooleanVar(value=False)
+        self.mostrar_pass_login = tk.BooleanVar(value=False)
+        self.mostrar_pass_reg = tk.BooleanVar(value=False)
 
         self._configurar_estilos()
         self._construir_interfaz()
@@ -63,7 +65,16 @@ class LoginView(ttk.Frame):
 
         ttk.Label(parent, text="Contraseña:", style="Normal.TLabel").pack(anchor="w")
         self.login_pass = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•")
-        self.login_pass.pack(pady=(0, 25), ipady=4)
+        self.login_pass.pack(pady=(0, 5), ipady=4)
+
+        chk_mostrar_login = ttk.Checkbutton(
+            parent, 
+            text="Mostrar contraseña", 
+            variable=self.mostrar_pass_login,
+            command=self.alternar_pass_login,
+            style="TCheckbutton"
+        )
+        chk_mostrar_login.pack(anchor="w", pady=(0, 20))
 
         btn_login = ttk.Button(parent, text="Entrar", style="Principal.TButton", command=self.procesar_login)
         btn_login.pack(fill="x", pady=(0, 10))
@@ -83,9 +94,17 @@ class LoginView(ttk.Frame):
 
         ttk.Label(parent, text="Confirmar Contraseña:", style="Normal.TLabel").pack(anchor="w")
         self.reg_pass_conf = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•")
-        self.reg_pass_conf.pack(pady=(0, 15), ipady=3)
+        self.reg_pass_conf.pack(pady=(0, 5), ipady=3)
 
-        # --- SECCIÓN DE TÉRMINOS Y CONDICIONES ---
+        chk_mostrar_reg = ttk.Checkbutton(
+            parent, 
+            text="Mostrar contraseñas", 
+            variable=self.mostrar_pass_reg,
+            command=self.alternar_pass_reg,
+            style="TCheckbutton"
+        )
+        chk_mostrar_reg.pack(anchor="w", pady=(0, 10))
+
         frame_terminos = ttk.Frame(parent, style="TFrame")
         frame_terminos.pack(fill="x", pady=(0, 15))
 
@@ -99,10 +118,25 @@ class LoginView(ttk.Frame):
 
         btn_leer_terminos = ttk.Button(frame_terminos, text="Términos y Condiciones", command=self.mostrar_terminos)
         btn_leer_terminos.pack(side="left", padx=(5, 0))
-        # -------------------------------------------
 
         btn_registro = ttk.Button(parent, text="Crear Cuenta", style="Secundario.TButton", command=self.procesar_registro)
         btn_registro.pack(fill="x")
+
+    def alternar_pass_login(self):
+        """Muestra u oculta la contraseña en el inicio de sesión."""
+        if self.mostrar_pass_login.get():
+            self.login_pass.config(show="")
+        else:
+            self.login_pass.config(show="•")
+
+    def alternar_pass_reg(self):
+        """Muestra u oculta ambas contraseñas en el registro."""
+        if self.mostrar_pass_reg.get():
+            self.reg_pass.config(show="")
+            self.reg_pass_conf.config(show="")
+        else:
+            self.reg_pass.config(show="•")
+            self.reg_pass_conf.config(show="•")
 
     def mostrar_terminos(self):
         """Abre una ventana emergente con el texto de los términos y condiciones."""
