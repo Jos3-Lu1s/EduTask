@@ -11,6 +11,7 @@ class LoginView(ttk.Frame):
         self.terminos_aceptados = tk.BooleanVar(value=False)
         self.mostrar_pass_login = tk.BooleanVar(value=False)
         self.mostrar_pass_reg = tk.BooleanVar(value=False)
+        self.intentos_fallidos = 0
 
         self._configurar_estilos()
         self._construir_interfaz()
@@ -76,8 +77,8 @@ class LoginView(ttk.Frame):
         )
         chk_mostrar_login.pack(anchor="w", pady=(0, 20))
 
-        btn_login = ttk.Button(parent, text="Entrar", style="Principal.TButton", command=self.procesar_login)
-        btn_login.pack(fill="x", pady=(0, 10))
+        self.btn_login = ttk.Button(parent, text="Entrar", style="Principal.TButton", command=self.procesar_login)
+        self.btn_login.pack(fill="x", pady=(0, 10))
 
     def _construir_tab_registro(self, parent):
         ttk.Label(parent, text="Nombre Completo:", style="Normal.TLabel").pack(anchor="w")
@@ -225,9 +226,47 @@ class LoginView(ttk.Frame):
 
         try:
             self.auth_manager.login_user(correo, password)
+            # Se reinicia el contador
+            self.intentos_fallidos = 0 
             self.on_login_success() 
         except Exception as e:
-            messagebox.showerror("Error de Autenticación", f"Credenciales incorrectas o usuario no encontrado.\n\nDetalle: {str(e)}")
+            # --- LÓGICA DE INTENTOS FALLIDOS ---
+            self.intentos_fallidos += 1
+            
+            if self.intentos_fallidos >= 3:
+                self._bloquear_interfaz_login()
+            else:
+                intentos_restantes = 3 - self.intentos_fallidos
+                messagebox.showerror(
+                    "Error de Autenticación", 
+                    f"Credenciales incorrectas.\nTe quedan {intentos_restantes} intento(s).\n\nDetalle: {str(e)}"
+                )
+
+    def _bloquear_interfaz_login(self):
+        """Desactiva los campos y el botón de inicio de sesión por 1 minuto."""
+        messagebox.showwarning(
+            "Acceso Bloqueado", 
+            "Has excedido el límite de 3 intentos fallidos.\nPor seguridad, el inicio de sesión se ha bloqueado durante medio minuto."
+        )
+        
+        # Cambiamos el estado de los widgets a 'disabled'
+        self.btn_login.config(state="disabled", text="Bloqueado (30s)...")
+        self.login_correo.config(state="disabled")
+        self.login_pass.config(state="disabled")
+        
+        # .after() toma el tiempo en milisegundos (60,000 ms = 1 minuto)
+        # y luego ejecuta la función _desbloquear_interfaz_login
+        self.after(30000, self._desbloquear_interfaz_login)
+
+    def _desbloquear_interfaz_login(self):
+        """Vuelve a habilitar la interfaz después del tiempo"""
+        self.intentos_fallidos = 0
+        
+        self.btn_login.config(state="normal", text="Entrar")
+        self.login_correo.config(state="normal")
+        self.login_pass.config(state="normal")
+        
+        messagebox.showinfo("Desbloqueado", "Ya puedes intentar iniciar sesión nuevamente.")
 
     def procesar_registro(self):
         nombre = self.reg_nombre.get().strip()
