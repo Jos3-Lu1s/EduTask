@@ -174,6 +174,9 @@ class DashboardView(ttk.Frame):
 
         self.tabla.bind("<Double-1>", self.abrir_modal_edicion)
 
+        self.tabla.tag_configure("completada", foreground="#27AE60")
+        self.tabla.tag_configure("pendiente", foreground="#34495E")
+
     # --- LÓGICA DE DATOS ---
     def cargar_tareas(self):
         for item in self.tabla.get_children():
@@ -188,9 +191,9 @@ class DashboardView(ttk.Frame):
         try:
             tareas = self.db_manager.get_user_tasks(self.user['uid'])
             for t in tareas:
-                self.tareas_actuales[t['id']] = t
-                imagen_a_mostrar = self.img_fila 
+                self.tareas_actuales[t['id']] = t  
 
+                imagen_a_mostrar = self.img_fila 
                 enlace = t.get('image_url', "") 
                 if enlace:
                     try:
@@ -203,12 +206,21 @@ class DashboardView(ttk.Frame):
 
                 self.imagenes_cache[t['id']] = imagen_a_mostrar
 
+                estado_db = t.get('status', 'pendiente')
+                if estado_db == 'completada':
+                    indicador_visual = "✅ Terminada"
+                    tag_color = "completada"
+                else:
+                    indicador_visual = "⏳ Pendiente"
+                    tag_color = "pendiente"
+
                 self.tabla.insert(
                     "", 
                     "end", 
                     iid=t['id'], 
                     image=imagen_a_mostrar, 
-                    values=(t['title'], t['description'], t['due_date'], t['status'])
+                    values=(t['title'], t['description'], t['due_date'], indicador_visual),
+                    tags=(tag_color,)
                 )
         except Exception as e:
             messagebox.showerror("Error", f"No se pudieron cargar las tareas: {e}")
