@@ -309,7 +309,7 @@ class DashboardView(ttk.Frame):
             self.pedir_confirmacion_seguridad(ejecutar_borrado)
 
     def pedir_confirmacion_seguridad(self, accion_callback, ventana_padre=None):
-        """Muestra un modal pidiendo la contraseña antes de ejecutar la acción."""
+        """Muestra un modal pidiendo la contraseña. Cierra sesión tras 2 intentos fallidos."""
         parent = ventana_padre if ventana_padre else self
         
         dialogo = tk.Toplevel(parent)
@@ -328,7 +328,9 @@ class DashboardView(ttk.Frame):
         
         entry_pass = ttk.Entry(dialogo, font=("Segoe UI", 11), show="•", width=25)
         entry_pass.pack(pady=5)
-        entry_pass.focus()
+        entry_pass.focus() 
+
+        dialogo.intentos_fallidos = 0
 
         def verificar(event=None):
             password = entry_pass.get().strip()
@@ -337,12 +339,31 @@ class DashboardView(ttk.Frame):
                 return
             try:
                 self.auth_manager.verify_password(password)
-                dialogo.destroy()  
-                accion_callback() 
+                dialogo.destroy()   
+                accion_callback()   
             except Exception as e:
-                messagebox.showerror("Error de Seguridad", str(e), parent=dialogo)
+                dialogo.intentos_fallidos += 1
+                
+                if dialogo.intentos_fallidos >= 2:
+                    messagebox.showerror(
+                        "Alerta de Seguridad Crítica", 
+                        "Contraseña incorrecta por segunda vez.\n\nPor políticas de seguridad, la sesión será cerrada inmediatamente.", 
+                        parent=dialogo
+                    )
+                    dialogo.destroy()
+                    if ventana_padre and isinstance(ventana_padre, tk.Toplevel):
+                        ventana_padre.destroy()
+                    self.procesar_logout()
+                else:
+                    intentos_restantes = 2 - dialogo.intentos_fallidos
+                    messagebox.showwarning(
+                        "Advertencia", 
+                        f"Contraseña incorrecta.\n\nTe queda {intentos_restantes} intento(s) antes de que se cierre tu sesión por seguridad.", 
+                        parent=dialogo
+                    )
+                    entry_pass.delete(0, tk.END)
 
-        entry_pass.bind("<Return>", verificar)
+        entry_pass.bind("<Return>", verificar) 
 
         frame_btn = ttk.Frame(dialogo, style="TFrame")
         frame_btn.pack(pady=15)
@@ -356,13 +377,11 @@ class DashboardView(ttk.Frame):
         if self.timer_inactividad:
             self.after_cancel(self.timer_inactividad)
         
-        # Solo reiniciamos si esta vista sigue existiendo (evita errores al cambiar de ventana)
         if self.winfo_exists():
             self.timer_inactividad = self.after(self.timeout_ms, self.cerrar_sesion_inactividad)
 
     def cerrar_sesion_inactividad(self):
         """Fuerza el cierre de sesión cuando el temporizador llega a su límite."""
-        # --- CORRECCIÓN: Ocultamos el correo antes de enviarlo al log ---
         correo_seguro = ocultar_correo(self.user['email'])
         logging.warning(f"SESIÓN EXPIRADA: Cierre automático por inactividad ({correo_seguro})")
         # ----------------------------------------------------------------
