@@ -136,3 +136,26 @@ class AuthManager:
             correo_seguro = ocultar_correo(self.current_user['email'])
             logging.info(f"LOGOUT: El usuario {correo_seguro} cerro sesion.")
         self.current_user = None
+
+    def verify_password(self, password):
+        """Verifica la contraseña del usuario actual para acciones sensibles."""
+        if not self.current_user:
+            raise Exception("No hay una sesión activa.")
+            
+        doc_ref = self.db.collection(self.collection_name).document(self.current_user['uid'])
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            raise Exception("El usuario no existe en la base de datos.")
+            
+        user_data = doc.to_dict()
+        
+        password_valida = bcrypt.checkpw(
+            password.encode('utf-8'), 
+            user_data["password"].encode('utf-8')
+        )
+        
+        if not password_valida:
+            raise Exception("Contraseña incorrecta. Acción denegada.")
+            
+        return True

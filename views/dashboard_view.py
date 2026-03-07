@@ -297,11 +297,58 @@ class DashboardView(ttk.Frame):
             
         if messagebox.askyesno("Confirmar", "¿Estás seguro de que deseas eliminar esta tarea permanentemente?"):
             task_id = seleccion[0]
+            
+            def ejecutar_borrado():
+                try:
+                    self.db_manager.delete_task(task_id)
+                    self.cargar_tareas()
+                    messagebox.showinfo("Éxito", "Tarea eliminada correctamente.")
+                except Exception as e:
+                    messagebox.showerror("Error", f"No se pudo eliminar la tarea: {e}")
+
+            self.pedir_confirmacion_seguridad(ejecutar_borrado)
+
+    def pedir_confirmacion_seguridad(self, accion_callback, ventana_padre=None):
+        """Muestra un modal pidiendo la contraseña antes de ejecutar la acción."""
+        parent = ventana_padre if ventana_padre else self
+        
+        dialogo = tk.Toplevel(parent)
+        dialogo.title("Seguridad")
+        dialogo.geometry("350x200")
+        dialogo.configure(bg="#F4F6F9")
+        dialogo.grab_set() 
+        dialogo.transient(parent)
+
+        dialogo.bind("<Key>", self.reiniciar_temporizador, add="+")
+        dialogo.bind("<Button>", self.reiniciar_temporizador, add="+")
+        dialogo.bind("<Motion>", self.reiniciar_temporizador, add="+")
+
+        ttk.Label(dialogo, text="Acción Sensible", font=("Segoe UI", 12, "bold"), background="#F4F6F9").pack(pady=(15, 5))
+        ttk.Label(dialogo, text="Por seguridad, confirma tu contraseña:", font=("Segoe UI", 10), background="#F4F6F9").pack(pady=(0, 10))
+        
+        entry_pass = ttk.Entry(dialogo, font=("Segoe UI", 11), show="•", width=25)
+        entry_pass.pack(pady=5)
+        entry_pass.focus()
+
+        def verificar(event=None):
+            password = entry_pass.get().strip()
+            if not password:
+                messagebox.showwarning("Campo vacío", "Debes ingresar tu contraseña.", parent=dialogo)
+                return
             try:
-                self.db_manager.delete_task(task_id)
-                self.cargar_tareas()
+                self.auth_manager.verify_password(password)
+                dialogo.destroy()  
+                accion_callback() 
             except Exception as e:
-                messagebox.showerror("Error", f"No se pudo eliminar la tarea: {e}")
+                messagebox.showerror("Error de Seguridad", str(e), parent=dialogo)
+
+        entry_pass.bind("<Return>", verificar)
+
+        frame_btn = ttk.Frame(dialogo, style="TFrame")
+        frame_btn.pack(pady=15)
+        
+        ttk.Button(frame_btn, text="Confirmar", style="Principal.TButton", command=verificar).pack(side="left", padx=5)
+        ttk.Button(frame_btn, text="Cancelar", style="Secundario.TButton", command=dialogo.destroy).pack(side="left", padx=5)
 
     # --- LÓGICA DE INACTIVIDAD ---
     def reiniciar_temporizador(self, event=None):
@@ -395,12 +442,11 @@ class DashboardView(ttk.Frame):
         entry_link.insert(0, tarea_data.get('image_url', ''))
         entry_link.pack(pady=(0, 20), ipady=3)
 
-        # Función interna para guardar los cambios
         def guardar_cambios():
-            nuevo_titulo = self.sanitizar_texto(self.entry_titulo.get())
-            nueva_desc = self.sanitizar_texto(self.entry_desc.get("1.0", tk.END), es_multilinea=True)
-            nueva_fecha = self.sanitizar_texto(self.entry_fecha.get())
-            nuevo_link = self.sanitizar_texto(self.entry_link_img.get())
+            nuevo_titulo = self.sanitizar_texto(entry_titulo.get())
+            nueva_desc = self.sanitizar_texto(entry_desc.get("1.0", tk.END), es_multilinea=True)
+            nueva_fecha = self.sanitizar_texto(entry_fecha.get())
+            nuevo_link = self.sanitizar_texto(entry_link.get())
 
             if not nuevo_titulo or not nueva_fecha:
                 messagebox.showwarning("Campos incompletos", "El Título y la Fecha son obligatorios.", parent=modal)
@@ -413,13 +459,17 @@ class DashboardView(ttk.Frame):
                 "image_url": nuevo_link
             }
 
-            try:
-                self.db_manager.update_task(task_id, datos_actualizados)
-                modal.destroy()
-                self.cargar_tareas()
-                messagebox.showinfo("Éxito", "Tarea actualizada correctamente.")
-            except Exception as e:
-                messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}", parent=modal)
+            def ejecutar_actualizacion():
+                try:
+                    self.db_manager.update_task(task_id, datos_actualizados)
+                    modal.destroy()        
+                    self.cargar_tareas()   
+                    messagebox.showinfo("Éxito", "Tarea actualizada correctamente.")
+                except Exception as e:
+                    messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
+
+            self.pedir_confirmacion_seguridad(ejecutar_actualizacion, ventana_padre=modal)
+
 
         btn_guardar = ttk.Button(frame_form, text="Guardar Cambios", style="Principal.TButton", command=guardar_cambios)
         btn_guardar.pack(fill="x", pady=(0, 10))
