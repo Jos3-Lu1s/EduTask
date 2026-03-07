@@ -31,7 +31,7 @@ class AppWindow(tk.Tk):
         self.vista_actual.pack(fill="both", expand=True)
 
     def mostrar_login(self):
-        self.geometry("450x620")
+        self.geometry("450x625")
         self.eval('tk::PlaceWindow . center') 
         
         self.cambiar_vista(

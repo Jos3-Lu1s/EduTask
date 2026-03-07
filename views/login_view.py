@@ -71,11 +71,14 @@ class LoginView(ttk.Frame):
         self._construir_tab_registro(frame_registro)
 
     def _construir_tab_login(self, parent):
-        ttk.Label(parent, text="Correo Electrónico (Max 100):", style="Normal.TLabel").pack(anchor="w")
+        # Leyenda indicativa
+        ttk.Label(parent, text="* Indica un campo obligatorio", font=("Segoe UI", 9, "italic"), foreground="#7F8C8D", background="#F4F6F9").pack(anchor="w", pady=(0, 10))
+
+        ttk.Label(parent, text="Correo Electrónico * (Max 100):", style="Normal.TLabel").pack(anchor="w")
         self.login_correo = ttk.Entry(parent, font=("Segoe UI", 11), width=35, validate="key", validatecommand=self.cmd_correo)
         self.login_correo.pack(pady=(0, 15), ipady=4)
 
-        ttk.Label(parent, text="Contraseña (Max 64):", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(parent, text="Contraseña * (Max 64):", style="Normal.TLabel").pack(anchor="w")
         self.login_pass = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•", validate="key", validatecommand=self.cmd_pass)
         self.login_pass.pack(pady=(0, 5), ipady=4)
 
@@ -86,19 +89,22 @@ class LoginView(ttk.Frame):
         self.btn_login.pack(fill="x", pady=(0, 10))
 
     def _construir_tab_registro(self, parent):
-        ttk.Label(parent, text="Nombre Completo (Max 50):", style="Normal.TLabel").pack(anchor="w")
+        # Leyenda indicativa
+        ttk.Label(parent, text="* Indica un campo obligatorio", font=("Segoe UI", 9, "italic"), foreground="#7F8C8D", background="#F4F6F9").pack(anchor="w", pady=(0, 10))
+
+        ttk.Label(parent, text="Nombre Completo * (Max 50):", style="Normal.TLabel").pack(anchor="w")
         self.reg_nombre = ttk.Entry(parent, font=("Segoe UI", 11), width=35, validate="key", validatecommand=self.cmd_nombre)
         self.reg_nombre.pack(pady=(0, 10), ipady=3)
 
-        ttk.Label(parent, text="Correo Electrónico (Max 100):", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(parent, text="Correo Electrónico * (Max 100):", style="Normal.TLabel").pack(anchor="w")
         self.reg_correo = ttk.Entry(parent, font=("Segoe UI", 11), width=35, validate="key", validatecommand=self.cmd_correo)
         self.reg_correo.pack(pady=(0, 10), ipady=3)
 
-        ttk.Label(parent, text="Contraseña (Max 64):", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(parent, text="Contraseña * (Max 64):", style="Normal.TLabel").pack(anchor="w")
         self.reg_pass = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•", validate="key", validatecommand=self.cmd_pass)
         self.reg_pass.pack(pady=(0, 10), ipady=3)
 
-        ttk.Label(parent, text="Confirmar Contraseña:", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(parent, text="Confirmar Contraseña *:", style="Normal.TLabel").pack(anchor="w")
         self.reg_pass_conf = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•", validate="key", validatecommand=self.cmd_pass)
         self.reg_pass_conf.pack(pady=(0, 5), ipady=3)
 
@@ -106,13 +112,16 @@ class LoginView(ttk.Frame):
         chk_mostrar_reg.pack(anchor="w", pady=(0, 10))
 
         frame_terminos = ttk.Frame(parent, style="TFrame")
-        frame_terminos.pack(fill="x", pady=(0, 15))
+        frame_terminos.pack(fill="x", pady=(0, 10))
 
         chk_terminos = ttk.Checkbutton(frame_terminos, text="Acepto los", variable=self.terminos_aceptados, style="TCheckbutton")
         chk_terminos.pack(side="left")
 
         btn_leer_terminos = ttk.Button(frame_terminos, text="Términos y Condiciones", command=self.mostrar_terminos)
         btn_leer_terminos.pack(side="left", padx=(5, 0))
+
+        # Aclaración de que los términos también son obligatorios
+        ttk.Label(parent, text="* Debes aceptar los términos para continuar", font=("Segoe UI", 8), foreground="#E74C3C", background="#F4F6F9").pack(anchor="w", pady=(0, 10))
 
         btn_registro = ttk.Button(parent, text="Crear Cuenta", style="Secundario.TButton", command=self.procesar_registro)
         btn_registro.pack(fill="x")

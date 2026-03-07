@@ -92,21 +92,24 @@ class DashboardView(ttk.Frame):
         self.cmd_titulo = (self.register(self.validar_longitud), '%P', '50')
         self.cmd_link = (self.register(self.validar_longitud), '%P', '300')
 
-        # PANEL IZQUIERDO
+        # PANEL IZQUIERDO: Formulario
         frame_form = ttk.LabelFrame(frame_body, text="Nueva Tarea", padding="15 15 15 15")
         frame_form.pack(side="left", fill="y", padx=(0, 20))
 
-        ttk.Label(frame_form, text="Título (Max 50):", style="Normal.TLabel").pack(anchor="w")
+        # Leyenda indicativa
+        ttk.Label(frame_form, text="* Indica un campo obligatorio", font=("Segoe UI", 9, "italic"), foreground="#7F8C8D", background="#F4F6F9").pack(anchor="w", pady=(0, 10))
+
+        ttk.Label(frame_form, text="Título * (Max 50):", style="Normal.TLabel").pack(anchor="w")
         self.entry_titulo = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11), validate="key", validatecommand=self.cmd_titulo)
         self.entry_titulo.pack(pady=(0, 10), ipady=3)
 
-        ttk.Label(frame_form, text="Descripción (Max 250):", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(frame_form, text="Descripción (Opcional, Max 250):", style="Normal.TLabel").pack(anchor="w")
         self.entry_desc = tk.Text(frame_form, width=32, height=6, font=("Segoe UI", 10))
         self.entry_desc.pack(pady=(0, 10))
 
         self.entry_desc.bind("<KeyPress>", self.limitar_descripcion)
 
-        ttk.Label(frame_form, text="Fecha de Entrega:", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(frame_form, text="Fecha de Entrega *:", style="Normal.TLabel").pack(anchor="w")
         self.entry_fecha = DateEntry(
             frame_form, 
             width=30, 
@@ -118,7 +121,7 @@ class DashboardView(ttk.Frame):
         )
         self.entry_fecha.pack(pady=(0, 15), ipady=3)
 
-        ttk.Label(frame_form, text="Link de Imagen (Max 300):", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(frame_form, text="Link de Imagen (Opcional, Max 300):", style="Normal.TLabel").pack(anchor="w")
         self.entry_link_img = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11), validate="key", validatecommand=self.cmd_link)
         self.entry_link_img.pack(pady=(0, 25), ipady=3)
 
@@ -212,7 +215,7 @@ class DashboardView(ttk.Frame):
         link_img = self.entry_link_img.get().strip()
 
         if not titulo or not fecha:
-            messagebox.showwarning("Campos incompletos", "El título y la fecha son obligatorios.")
+            messagebox.showwarning("Campos incompletos", "Por favor, completa los campos obligatorios marcados con asterisco (*).")
             return
 
         try:
