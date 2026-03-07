@@ -306,9 +306,9 @@ class DashboardView(ttk.Frame):
                 except Exception as e:
                     messagebox.showerror("Error", f"No se pudo eliminar la tarea: {e}")
 
-            self.pedir_confirmacion_seguridad(ejecutar_borrado)
+            self.pedir_confirmacion_seguridad(ejecutar_borrado, accion_nombre="ELIMINAR TAREA")
 
-    def pedir_confirmacion_seguridad(self, accion_callback, ventana_padre=None):
+    def pedir_confirmacion_seguridad(self, accion_callback, accion_nombre="ACCIÓN", ventana_padre=None):
         """Muestra un modal pidiendo la contraseña. Cierra sesión tras 2 intentos fallidos."""
         parent = ventana_padre if ventana_padre else self
         
@@ -323,7 +323,7 @@ class DashboardView(ttk.Frame):
         dialogo.bind("<Button>", self.reiniciar_temporizador, add="+")
         dialogo.bind("<Motion>", self.reiniciar_temporizador, add="+")
 
-        ttk.Label(dialogo, text="Acción Sensible", font=("Segoe UI", 12, "bold"), background="#F4F6F9").pack(pady=(15, 5))
+        ttk.Label(dialogo, text=f"Confirmar: {accion_nombre}", font=("Segoe UI", 12, "bold"), background="#F4F6F9").pack(pady=(15, 5))
         ttk.Label(dialogo, text="Por seguridad, confirma tu contraseña:", font=("Segoe UI", 10), background="#F4F6F9").pack(pady=(0, 10))
         
         entry_pass = ttk.Entry(dialogo, font=("Segoe UI", 11), show="•", width=25)
@@ -344,7 +344,15 @@ class DashboardView(ttk.Frame):
             except Exception as e:
                 dialogo.intentos_fallidos += 1
                 
+                # --- Mandar el aviso al Logger de la Base de Datos ---
+                db_logger = logging.getLogger('DatabaseLogger')
+                correo_seguro = ocultar_correo(self.user['email'])
+                # --------------------------------------------------------------
+
                 if dialogo.intentos_fallidos >= 2:
+                    # LOG CRÍTICO DE BLOQUEO
+                    db_logger.critical(f"SECURITY BLOCK: {correo_seguro} falló 2 veces al intentar {accion_nombre}. Sesión cerrada.")
+                    
                     messagebox.showerror(
                         "Alerta de Seguridad Crítica", 
                         "Contraseña incorrecta por segunda vez.\n\nPor políticas de seguridad, la sesión será cerrada inmediatamente.", 
@@ -355,6 +363,9 @@ class DashboardView(ttk.Frame):
                         ventana_padre.destroy()
                     self.procesar_logout()
                 else:
+                    # LOG DE ADVERTENCIA (Primer intento)
+                    db_logger.warning(f"Contraseña incorrecta. {correo_seguro} intentó {accion_nombre}. (Intento 1/2)")
+                    
                     intentos_restantes = 2 - dialogo.intentos_fallidos
                     messagebox.showwarning(
                         "Advertencia", 
@@ -487,7 +498,7 @@ class DashboardView(ttk.Frame):
                 except Exception as e:
                     messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
 
-            self.pedir_confirmacion_seguridad(ejecutar_actualizacion, ventana_padre=modal)
+            self.pedir_confirmacion_seguridad(ejecutar_actualizacion, accion_nombre="ACTUALIZAR TAREA", ventana_padre=modal)
 
 
         btn_guardar = ttk.Button(frame_form, text="Guardar Cambios", style="Principal.TButton", command=guardar_cambios)
