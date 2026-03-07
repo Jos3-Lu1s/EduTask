@@ -4,6 +4,8 @@ from tkcalendar import DateEntry
 from PIL import Image, ImageTk
 import urllib.request
 from io import BytesIO
+import logging
+from models.auth import ocultar_correo
 
 class DashboardView(ttk.Frame):
     def __init__(self, parent, auth_manager, db_manager, on_logout):
@@ -18,7 +20,25 @@ class DashboardView(ttk.Frame):
 
         self._configurar_estilos()
         self._construir_interfaz()
-        self.cargar_tareas() # Cargamos las tareas apenas se abre la ventana
+        self.cargar_tareas() 
+
+        # --- SISTEMA DE INACTIVIDAD ---
+        # Configuramos el tiempo límite
+        # self.timeout_ms = 5 * 60 * 1000 
+        self.timeout_ms = 5000 
+        self.timer_inactividad = None
+        
+        # Vincular la actividad del teclado y mouse a nivel de toda la ventana
+        top_window = self.winfo_toplevel()
+        
+        # Se usa add="+" para no sobreescribir otros eventos internos de Tkinter
+        self.bind_teclado = top_window.bind("<Key>", self.reiniciar_temporizador, add="+")
+        self.bind_click = top_window.bind("<Button>", self.reiniciar_temporizador, add="+")
+        self.bind_movimiento = top_window.bind("<Motion>", self.reiniciar_temporizador, add="+")
+        
+        # Iniciamos el temporizador por primera vez
+        self.reiniciar_temporizador()
+        # ------------------------------
 
     def _configurar_estilos(self):
         self.configure(style="TFrame")
@@ -30,12 +50,9 @@ class DashboardView(ttk.Frame):
 
         try:
             imagen_original = Image.open("assets/image.jpg")
-
             imagen_original = imagen_original.resize((50, 50), Image.Resampling.LANCZOS)
-            
             self.img_fila = ImageTk.PhotoImage(imagen_original)
-            estilo.configure("Treeview", rowheight=55,) 
-            
+            estilo.configure("Treeview", rowheight=55) 
         except Exception as e:
             print(f"Error cargando la imagen: {e}")
             self.img_fila = None
@@ -50,9 +67,10 @@ class DashboardView(ttk.Frame):
         btn_logout = ttk.Button(frame_header, text="Cerrar Sesión", style="Secundario.TButton", command=self.procesar_logout)
         btn_logout.pack(side="right")
         
-        ttk.Label(frame_header, text=f"Hola, {self.user.get('name', 'Estudiante')}", style="Normal.TLabel").pack(side="right", padx=20)
+        nombre_usuario = self.user.get('name', 'Estudiante')
+        ttk.Label(frame_header, text=f"Hola, {nombre_usuario}", style="Normal.TLabel").pack(side="right", padx=20)
 
-        # --- CUERPO PRINCIPAL (Dividido en 2 columnas) ---
+        # --- CUERPO PRINCIPAL ---
         frame_body = ttk.Frame(self)
         frame_body.pack(fill="both", expand=True)
 
@@ -69,7 +87,6 @@ class DashboardView(ttk.Frame):
         self.entry_desc.pack(pady=(0, 10))
 
         ttk.Label(frame_form, text="Fecha de Entrega:", style="Normal.TLabel").pack(anchor="w")
-        
         self.entry_fecha = DateEntry(
             frame_form, 
             width=28, 
@@ -79,8 +96,6 @@ class DashboardView(ttk.Frame):
             borderwidth=1,
             date_pattern='yyyy-mm-dd'
         )
-        self.entry_fecha.pack(pady=(0, 20), ipady=3)
-
         self.entry_fecha.pack(pady=(0, 20), ipady=3)
 
         ttk.Label(frame_form, text="Link de Imagen (Opcional):", style="Normal.TLabel").pack(anchor="w")
@@ -94,9 +109,7 @@ class DashboardView(ttk.Frame):
         frame_tabla = ttk.Frame(frame_body)
         frame_tabla.pack(side="right", fill="both", expand=True)
 
-        # Columnas
         columnas = ("titulo", "descripcion", "fecha", "estado")
-        
         self.tabla = ttk.Treeview(frame_tabla, columns=columnas, show="tree headings", selectmode="browse")
         
         self.tabla.heading("#0", text="Imagen")
@@ -114,7 +127,6 @@ class DashboardView(ttk.Frame):
 
         self.tabla.pack(fill="both", expand=True, pady=(0, 10))
 
-        # Botones de Acción para la tabla
         frame_acciones = ttk.Frame(frame_tabla)
         frame_acciones.pack(fill="x")
 
@@ -125,9 +137,7 @@ class DashboardView(ttk.Frame):
         btn_eliminar.pack(side="left")
 
     # --- LÓGICA DE DATOS ---
-
     def cargar_tareas(self):
-        """Limpia la tabla y carga las tareas desde Firebase."""
         for item in self.tabla.get_children():
             self.tabla.delete(item)
 
@@ -176,13 +186,11 @@ class DashboardView(ttk.Frame):
             self.db_manager.create_task(self.user['uid'], titulo, desc, fecha, link_img) 
             messagebox.showinfo("Éxito", "Tarea agregada correctamente.")
             
-            # Limpiar formulario
             self.entry_titulo.delete(0, tk.END)
             self.entry_desc.delete("1.0", tk.END)
             self.entry_fecha.delete(0, tk.END)
             self.entry_link_img.delete(0, tk.END)
             
-            # Recargar la tabla
             self.cargar_tareas()
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo guardar la tarea: {e}")
@@ -193,7 +201,7 @@ class DashboardView(ttk.Frame):
             messagebox.showwarning("Sin selección", "Por favor, selecciona una tarea de la tabla.")
             return
             
-        task_id = seleccion[0] # El ID del documento en Firebase que asignamos como iid
+        task_id = seleccion[0] 
         try:
             self.db_manager.update_task_status(task_id, "completada")
             self.cargar_tareas()
@@ -214,6 +222,44 @@ class DashboardView(ttk.Frame):
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo eliminar la tarea: {e}")
 
+    # --- LÓGICA DE INACTIVIDAD ---
+    def reiniciar_temporizador(self, event=None):
+        """Cancela el reloj actual y comienza uno nuevo desde cero."""
+        if self.timer_inactividad:
+            self.after_cancel(self.timer_inactividad)
+        
+        # Solo reiniciamos si esta vista sigue existiendo (evita errores al cambiar de ventana)
+        if self.winfo_exists():
+            self.timer_inactividad = self.after(self.timeout_ms, self.cerrar_sesion_inactividad)
+
+    def cerrar_sesion_inactividad(self):
+        """Fuerza el cierre de sesión cuando el temporizador llega a su límite."""
+        # --- CORRECCIÓN: Ocultamos el correo antes de enviarlo al log ---
+        correo_seguro = ocultar_correo(self.user['email'])
+        logging.warning(f"SESIÓN EXPIRADA: Cierre automático por inactividad ({correo_seguro})")
+        # ----------------------------------------------------------------
+        
+        messagebox.showwarning(
+            "Sesión Expirada", 
+            "Por tu seguridad, la sesión se ha cerrado automáticamente tras 5 minutos de inactividad."
+        )
+        self.procesar_logout()
+
     def procesar_logout(self):
+        """Limpia todo antes de regresar al login."""
+        # Detener el reloj para que no siga contando en la pantalla de Login
+        if self.timer_inactividad:
+            self.after_cancel(self.timer_inactividad)
+            
+        # Desvincular los eventos del mouse/teclado para no gastar recursos
+        top_window = self.winfo_toplevel()
+        try:
+            top_window.unbind("<Key>", self.bind_teclado)
+            top_window.unbind("<Button>", self.bind_click)
+            top_window.unbind("<Motion>", self.bind_movimiento)
+        except Exception:
+            pass 
+            
+        # 3. Cerramos sesión y avisamos a app_window.py
         self.auth_manager.logout_user()
         self.on_logout()
