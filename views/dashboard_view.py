@@ -5,12 +5,16 @@ from PIL import Image, ImageTk
 import urllib.request
 from io import BytesIO
 import logging
-from models.auth import ocultar_correo
+from models.auth import ocultar_correo, sanitizar_error_tecnico
 import re
 
 class DashboardView(ttk.Frame):
     def __init__(self, parent, auth_manager, db_manager, on_logout):
         super().__init__(parent, padding="20 20 20 20")
+
+        # True = Modo Producción (Censura datos y oculta rastreo profundo)
+        # False = Modo Desarrollo (Muestra errores y rastreo completos)
+        self.modo_produccion_seguro = True
         
         self.auth_manager = auth_manager
         self.db_manager = db_manager
@@ -252,12 +256,14 @@ class DashboardView(ttk.Frame):
                 )
         except Exception as e:
             # messagebox.showerror("Error", f"No se pudieron cargar las tareas: {e}")
-
-            # LOG TÉCNICO DETALLADO (exc_info=True guarda todo el rastro del error)
+            error_procesado = sanitizar_error_tecnico(e, aplicar_filtro=self.modo_produccion_seguro)
             db_logger = logging.getLogger('DatabaseLogger')
-            db_logger.error(f"SYSTEM ERROR: Fallo al cargar tareas para el usuario {self.user['uid']}. Detalle: {str(e)}", exc_info=True)
             
-            # MENSAJE GENÉRICO PARA EL USUARIO
+            if self.modo_produccion_seguro:
+                db_logger.error(f"SYSTEM ERROR: Fallo al cargar tareas para {self.user['uid']}. Detalle: {error_procesado}")
+            else:
+                db_logger.error(f"DEV ERROR: Fallo al cargar tareas para {self.user['uid']}. Detalle: {error_procesado}", exc_info=True)
+                
             messagebox.showerror("Error de Conexión", "Ocurrió un problema al intentar cargar tus tareas. Por favor, verifica tu conexión o intenta más tarde.")
 
     def agregar_tarea(self):
@@ -273,7 +279,7 @@ class DashboardView(ttk.Frame):
         try:
 
             # # --- INYECCIÓN DE ERROR PARA PRUEBAS ---
-            # raise Exception("503 Service Unavailable: FIREBASE_CONNECTION_TIMEOUT_ERROR_SIMULADO")
+            raise Exception("503 Service Unavailable: FIREBASE_CONNECTION_TIMEOUT_ERROR_SIMULADO")
             # # ---------------------------------------
 
             self.db_manager.create_task(self.user['uid'], titulo, desc, fecha, link_img) 
@@ -288,8 +294,14 @@ class DashboardView(ttk.Frame):
         except Exception as e:
             # messagebox.showerror("Error", f"No se pudo guardar la tarea: {e}")
             db_logger = logging.getLogger('DatabaseLogger')
-            db_logger.error(f"SYSTEM ERROR: Fallo al crear tarea para {self.user['uid']}. Detalle: {str(e)}", exc_info=True)
+            error_procesado = sanitizar_error_tecnico(e, aplicar_filtro=self.modo_produccion_seguro)
             
+            # 2. Guardamos el log de manera segura o detallada según el modo
+            if self.modo_produccion_seguro:
+                db_logger.error(f"SYSTEM ERROR: Fallo al crear tarea. Detalle: {error_procesado}")
+            else:
+                db_logger.error(f"DEV ERROR: Fallo al crear tarea. Detalle: {error_procesado}", exc_info=True)
+                
             messagebox.showerror("Error del Sistema", "No pudimos guardar tu tarea en este momento. Inténtalo de nuevo en unos minutos.")
 
     def completar_tarea(self):
@@ -304,9 +316,14 @@ class DashboardView(ttk.Frame):
             self.cargar_tareas()
         except Exception as e:
             # messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
+            error_procesado = sanitizar_error_tecnico(e, aplicar_filtro=self.modo_produccion_seguro)
             db_logger = logging.getLogger('DatabaseLogger')
-            db_logger.error(f"SYSTEM ERROR: Fallo al completar la tarea {task_id}. Detalle: {str(e)}", exc_info=True)
             
+            if self.modo_produccion_seguro:
+                db_logger.error(f"SYSTEM ERROR: Fallo al completar la tarea {task_id}. Detalle: {error_procesado}")
+            else:
+                db_logger.error(f"DEV ERROR: Fallo al completar la tarea {task_id}. Detalle: {error_procesado}", exc_info=True)
+                
             messagebox.showerror("Error del Sistema", "Ocurrió un error al actualizar el estado de la tarea.")
 
     def eliminar_tarea(self):
@@ -325,9 +342,14 @@ class DashboardView(ttk.Frame):
                     messagebox.showinfo("Éxito", "Tarea eliminada correctamente.")
                 except Exception as e:
                     # messagebox.showerror("Error", f"No se pudo eliminar la tarea: {e}")
+                    error_procesado = sanitizar_error_tecnico(e, aplicar_filtro=self.modo_produccion_seguro)
                     db_logger = logging.getLogger('DatabaseLogger')
-                    db_logger.error(f"SYSTEM ERROR: Fallo al eliminar la tarea {task_id}. Detalle: {str(e)}", exc_info=True)
                     
+                    if self.modo_produccion_seguro:
+                        db_logger.error(f"SYSTEM ERROR: Fallo al eliminar la tarea {task_id}. Detalle: {error_procesado}")
+                    else:
+                        db_logger.error(f"DEV ERROR: Fallo al eliminar la tarea {task_id}. Detalle: {error_procesado}", exc_info=True)
+                        
                     messagebox.showerror("Error del Sistema", "Ocurrió un problema inesperado y la tarea no pudo ser eliminada.")
 
             self.pedir_confirmacion_seguridad(ejecutar_borrado, accion_nombre="ELIMINAR TAREA")
@@ -521,9 +543,14 @@ class DashboardView(ttk.Frame):
                     messagebox.showinfo("Éxito", "Tarea actualizada correctamente.")
                 except Exception as e:
                     # messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
+                    error_procesado = sanitizar_error_tecnico(e, aplicar_filtro=self.modo_produccion_seguro)
                     db_logger = logging.getLogger('DatabaseLogger')
-                    db_logger.error(f"SYSTEM ERROR: Fallo al actualizar la tarea {task_id}. Detalle: {str(e)}", exc_info=True)
                     
+                    if self.modo_produccion_seguro:
+                        db_logger.error(f"SYSTEM ERROR: Fallo al actualizar tarea {task_id}. Detalle: {error_procesado}")
+                    else:
+                        db_logger.error(f"DEV ERROR: Fallo al actualizar tarea {task_id}. Detalle: {error_procesado}", exc_info=True)
+                        
                     messagebox.showerror("Error del Sistema", "No pudimos guardar los cambios de tu tarea. Por favor, intenta de nuevo.", parent=modal)
 
             self.pedir_confirmacion_seguridad(ejecutar_actualizacion, accion_nombre="ACTUALIZAR TAREA", ventana_padre=modal)

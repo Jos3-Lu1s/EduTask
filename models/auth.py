@@ -1,5 +1,6 @@
 import bcrypt
 import logging
+import re
 import os
 import uuid
 from datetime import datetime, timedelta, timezone # Importamos manejo de tiempo
@@ -16,6 +17,31 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     encoding='utf-8' 
 )
+
+def sanitizar_error_tecnico(mensaje_error, aplicar_filtro=True):
+    """
+    Escanea un mensaje de error y censura información sensible.
+    Si aplicar_filtro es False (Modo Desarrollo), devuelve el error intacto.
+    """
+    mensaje_str = str(mensaje_error)
+    
+    if not aplicar_filtro:
+        return mensaje_str
+        
+    # Censurar correos electrónicos 
+    patron_correo = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+    for correo in re.findall(patron_correo, mensaje_str):
+        mensaje_str = mensaje_str.replace(correo, ocultar_correo(correo))
+        
+    # Censurar posibles Tokens o API Keys (Cadenas largas alfanuméricas)
+    patron_token = r'(?i)(token|key|api_key|secret|password)["\'\s:=]+([a-zA-Z0-9_\-\.]{20,})'
+    mensaje_str = re.sub(patron_token, r'\1: [CENSURADO_POR_SEGURIDAD]', mensaje_str)
+    
+    # Censurar cadenas hexadecimales o hashes muy largos
+    patron_hash = r'\b[a-zA-Z0-9_\-\.]{40,}\b'
+    mensaje_str = re.sub(patron_hash, '[HASH_CENSURADO]', mensaje_str)
+
+    return mensaje_str
 
 def ocultar_correo(email):
     try:
