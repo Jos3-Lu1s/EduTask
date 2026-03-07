@@ -251,7 +251,14 @@ class DashboardView(ttk.Frame):
                     tags=(tag_color,)
                 )
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudieron cargar las tareas: {e}")
+            # messagebox.showerror("Error", f"No se pudieron cargar las tareas: {e}")
+
+            # LOG TÉCNICO DETALLADO (exc_info=True guarda todo el rastro del error)
+            db_logger = logging.getLogger('DatabaseLogger')
+            db_logger.error(f"SYSTEM ERROR: Fallo al cargar tareas para el usuario {self.user['uid']}. Detalle: {str(e)}", exc_info=True)
+            
+            # MENSAJE GENÉRICO PARA EL USUARIO
+            messagebox.showerror("Error de Conexión", "Ocurrió un problema al intentar cargar tus tareas. Por favor, verifica tu conexión o intenta más tarde.")
 
     def agregar_tarea(self):
         titulo = self.sanitizar_texto(self.entry_titulo.get())
@@ -264,6 +271,11 @@ class DashboardView(ttk.Frame):
             return
 
         try:
+
+            # # --- INYECCIÓN DE ERROR PARA PRUEBAS ---
+            # raise Exception("503 Service Unavailable: FIREBASE_CONNECTION_TIMEOUT_ERROR_SIMULADO")
+            # # ---------------------------------------
+
             self.db_manager.create_task(self.user['uid'], titulo, desc, fecha, link_img) 
             messagebox.showinfo("Éxito", "Tarea agregada correctamente.")
             
@@ -274,7 +286,11 @@ class DashboardView(ttk.Frame):
             
             self.cargar_tareas()
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo guardar la tarea: {e}")
+            # messagebox.showerror("Error", f"No se pudo guardar la tarea: {e}")
+            db_logger = logging.getLogger('DatabaseLogger')
+            db_logger.error(f"SYSTEM ERROR: Fallo al crear tarea para {self.user['uid']}. Detalle: {str(e)}", exc_info=True)
+            
+            messagebox.showerror("Error del Sistema", "No pudimos guardar tu tarea en este momento. Inténtalo de nuevo en unos minutos.")
 
     def completar_tarea(self):
         seleccion = self.tabla.selection()
@@ -287,7 +303,11 @@ class DashboardView(ttk.Frame):
             self.db_manager.update_task_status(task_id, "completada")
             self.cargar_tareas()
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
+            # messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
+            db_logger = logging.getLogger('DatabaseLogger')
+            db_logger.error(f"SYSTEM ERROR: Fallo al completar la tarea {task_id}. Detalle: {str(e)}", exc_info=True)
+            
+            messagebox.showerror("Error del Sistema", "Ocurrió un error al actualizar el estado de la tarea.")
 
     def eliminar_tarea(self):
         seleccion = self.tabla.selection()
@@ -304,7 +324,11 @@ class DashboardView(ttk.Frame):
                     self.cargar_tareas()
                     messagebox.showinfo("Éxito", "Tarea eliminada correctamente.")
                 except Exception as e:
-                    messagebox.showerror("Error", f"No se pudo eliminar la tarea: {e}")
+                    # messagebox.showerror("Error", f"No se pudo eliminar la tarea: {e}")
+                    db_logger = logging.getLogger('DatabaseLogger')
+                    db_logger.error(f"SYSTEM ERROR: Fallo al eliminar la tarea {task_id}. Detalle: {str(e)}", exc_info=True)
+                    
+                    messagebox.showerror("Error del Sistema", "Ocurrió un problema inesperado y la tarea no pudo ser eliminada.")
 
             self.pedir_confirmacion_seguridad(ejecutar_borrado, accion_nombre="ELIMINAR TAREA")
 
@@ -496,7 +520,11 @@ class DashboardView(ttk.Frame):
                     self.cargar_tareas()   
                     messagebox.showinfo("Éxito", "Tarea actualizada correctamente.")
                 except Exception as e:
-                    messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
+                    # messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}")
+                    db_logger = logging.getLogger('DatabaseLogger')
+                    db_logger.error(f"SYSTEM ERROR: Fallo al actualizar la tarea {task_id}. Detalle: {str(e)}", exc_info=True)
+                    
+                    messagebox.showerror("Error del Sistema", "No pudimos guardar los cambios de tu tarea. Por favor, intenta de nuevo.", parent=modal)
 
             self.pedir_confirmacion_seguridad(ejecutar_actualizacion, accion_nombre="ACTUALIZAR TAREA", ventana_padre=modal)
 
