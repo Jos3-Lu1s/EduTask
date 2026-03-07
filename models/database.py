@@ -1,3 +1,5 @@
+import uuid
+from google.cloud import firestore
 from config.firebase_config import get_firestore_client
 from google.cloud.firestore_v1.base_query import FieldFilter
 
@@ -7,20 +9,23 @@ class DatabaseManager:
         self.db = get_firestore_client()
         self.collection_name = "tasks"
 
-    def create_task(self, uid, title, description, due_date, image_url=""):
+    def create_task(self, user_id, title, description, due_date, image_url=""):
         """Crea una nueva tarea en Firestore vinculada al UID del usuario."""
         task_data = {
-            "user_id": uid,
+            "user_id": user_id,
             "title": title,
             "description": description,
             "due_date": due_date,
+            "image_url": image_url,
             "status": "pendiente",
-            "image_url": image_url
+            "created_at": firestore.SERVER_TIMESTAMP
         }
+
+        nuevo_id = f"EduTask_{uuid.uuid4()}"
         
-        # .add() genera un ID único automáticamente para el documento
-        update_time, doc_ref = self.db.collection(self.collection_name).add(task_data)
-        return doc_ref.id  # Retornamos el ID por si lo necesitamos en la interfaz
+        self.db.collection(self.collection_name).document(nuevo_id).set(task_data)
+        
+        return nuevo_id
 
     def get_user_tasks(self, uid):
         """Obtiene solo las tareas que le pertenecen al usuario actual."""

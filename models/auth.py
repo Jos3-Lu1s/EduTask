@@ -1,6 +1,7 @@
 import bcrypt
 import logging
 import os
+import uuid
 from datetime import datetime, timedelta, timezone # Importamos manejo de tiempo
 from config.firebase_config import get_firestore_client
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -54,10 +55,13 @@ class AuthManager:
             "is_suspended": False,
             "locked_until": None
         }
+
+        nuevo_id = f"EduTaskUser_{uuid.uuid4()}"
         
-        update_time, doc_ref = users_ref.add(user_data)
-        logging.info(f"NUEVO REGISTRO: Usuario creado exitosamente ({ocultar_correo(email)})")
-        return doc_ref.id 
+        users_ref.document(nuevo_id).set(user_data)
+        
+        logging.info(f"NUEVO REGISTRO: Usuario creado exitosamente ({ocultar_correo(email)}) con ID: {nuevo_id}")
+        return nuevo_id
 
     def login_user(self, email, password):
         users_ref = self.db.collection(self.collection_name)
