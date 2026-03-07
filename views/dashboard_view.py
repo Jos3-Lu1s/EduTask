@@ -6,6 +6,7 @@ import urllib.request
 from io import BytesIO
 import logging
 from models.auth import ocultar_correo
+import re
 
 class DashboardView(ttk.Frame):
     def __init__(self, parent, auth_manager, db_manager, on_logout):
@@ -57,20 +58,47 @@ class DashboardView(ttk.Frame):
             print(f"Error cargando la imagen: {e}")
             self.img_fila = None
 
-    def validar_longitud(self, nuevo_texto, longitud_maxima):
-        """Validador general para los campos Entry del formulario."""
-        return len(nuevo_texto) <= int(longitud_maxima)
+    def validar_entrada(self, nuevo_texto, longitud_maxima, tipo_campo):
+        if len(nuevo_texto) > int(longitud_maxima):
+            return False
+
+        if tipo_campo == "texto_limpio":
+            # Letras, números, puntuación básica. BLOQUEA: < > { } = ` ~ (Símbolos de inyección)
+            patron = r'^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s.,!?()\-:;]*$'
+        elif tipo_campo == "url":
+            # Caracteres válidos para un enlace web
+            patron = r'^[a-zA-Z0-9:\/\.\-\_?&=%]*$'
+        else:
+            patron = r'.*'
+
+        return re.match(patron, nuevo_texto) is not None
 
     def limitar_descripcion(self, event):
-        """Validador específico para el widget de texto (Descripción)."""
-        # Permitir teclas de borrado y flechas de navegación
+        """Valida longitud y caracteres para el widget Text."""
         teclas_control = ['BackSpace', 'Delete', 'Left', 'Right', 'Up', 'Down']
         if event.keysym in teclas_control:
             return
-            
-        # Si el texto ya tiene 250 o más caracteres, detenemos la acción (break)
+
+        # 1. Bloquear caracteres peligrosos en tiempo real al teclear
+        if event.char and not re.match(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s.,!?()\-:;\n]', event.char):
+            return "break"
+
+        # 2. Bloquear si excede la longitud
         if len(self.entry_desc.get("1.0", "end-1c")) >= 250:
             return "break"
+
+    def sanitizar_texto(self, texto, es_multilinea=False):
+        if not texto:
+            return ""
+        texto = texto.strip()
+        if not es_multilinea:
+            # Quita espacios dobles en títulos
+            texto = re.sub(r' +', ' ', texto) 
+        else:
+            # En la descripción respetamos los saltos de línea (\n) pero quitamos dobles espacios
+            texto = re.sub(r'[ \t]+', ' ', texto)
+        return texto
+    # -----------------------------------
 
     def _construir_interfaz(self):
         # --- ENCABEZADO ---
@@ -89,8 +117,8 @@ class DashboardView(ttk.Frame):
         frame_body = ttk.Frame(self)
         frame_body.pack(fill="both", expand=True)
 
-        self.cmd_titulo = (self.register(self.validar_longitud), '%P', '50')
-        self.cmd_link = (self.register(self.validar_longitud), '%P', '300')
+        self.cmd_titulo = (self.register(self.validar_entrada), '%P', '50', 'texto_limpio')
+        self.cmd_link = (self.register(self.validar_entrada), '%P', '300', 'url')
 
         # PANEL IZQUIERDO: Formulario
         frame_form = ttk.LabelFrame(frame_body, text="Nueva Tarea", padding="15 15 15 15")
@@ -226,10 +254,10 @@ class DashboardView(ttk.Frame):
             messagebox.showerror("Error", f"No se pudieron cargar las tareas: {e}")
 
     def agregar_tarea(self):
-        titulo = self.entry_titulo.get().strip()
-        desc = self.entry_desc.get("1.0", tk.END).strip()
-        fecha = self.entry_fecha.get().strip()
-        link_img = self.entry_link_img.get().strip()
+        titulo = self.sanitizar_texto(self.entry_titulo.get())
+        desc = self.sanitizar_texto(self.entry_desc.get("1.0", tk.END), es_multilinea=True)
+        fecha = self.sanitizar_texto(self.entry_fecha.get())
+        link_img = self.sanitizar_texto(self.entry_link_img.get())
 
         if not titulo or not fecha:
             messagebox.showwarning("Campos incompletos", "Por favor, completa los campos obligatorios marcados con asterisco (*).")
@@ -369,10 +397,10 @@ class DashboardView(ttk.Frame):
 
         # Función interna para guardar los cambios
         def guardar_cambios():
-            nuevo_titulo = entry_titulo.get().strip()
-            nueva_desc = entry_desc.get("1.0", tk.END).strip()
-            nueva_fecha = entry_fecha.get().strip()
-            nuevo_link = entry_link.get().strip()
+            nuevo_titulo = self.sanitizar_texto(self.entry_titulo.get())
+            nueva_desc = self.sanitizar_texto(self.entry_desc.get("1.0", tk.END), es_multilinea=True)
+            nueva_fecha = self.sanitizar_texto(self.entry_fecha.get())
+            nuevo_link = self.sanitizar_texto(self.entry_link_img.get())
 
             if not nuevo_titulo or not nueva_fecha:
                 messagebox.showwarning("Campos incompletos", "El Título y la Fecha son obligatorios.", parent=modal)

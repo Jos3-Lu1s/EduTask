@@ -41,9 +41,34 @@ class LoginView(ttk.Frame):
 
         estilo.configure("TCheckbutton", background="#F4F6F9", font=("Segoe UI", 10))
 
-    def validar_longitud(self, nuevo_texto, longitud_maxima):
-        """Devuelve True si el texto tecleado no supera la longitud máxima."""
-        return len(nuevo_texto) <= int(longitud_maxima)
+    def validar_entrada(self, nuevo_texto, longitud_maxima, tipo_campo):
+        """Valida longitud y restringe caracteres permitidos en tiempo real."""
+        if len(nuevo_texto) > int(longitud_maxima):
+            return False
+
+        # Definimos qué caracteres están permitidos según el campo
+        if tipo_campo == "nombre":
+            # Solo letras (incluyendo acentos y ñ) y espacios
+            patron = r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$'
+        elif tipo_campo == "correo":
+            # Letras, números y símbolos de correo
+            patron = r'^[a-zA-Z0-9_.+\-@]*$'
+        elif tipo_campo == "pass":
+            # Cualquier carácter excepto espacios en blanco
+            patron = r'^[^\s]*$'
+        else:
+            patron = r'.*'
+
+        # Devuelve True solo si el texto coincide con el patrón seguro
+        return re.match(patron, nuevo_texto) is not None
+
+    def sanitizar_texto(self, texto):
+        """Limpia el texto antes de enviarlo a la base de datos."""
+        if not texto:
+            return ""
+        # 1. strip() quita espacios al inicio y al final
+        # 2. re.sub quita espacios múltiples internos (ej. "Juan   Perez" -> "Juan Perez")
+        return re.sub(r' +', ' ', texto.strip())
 
     def _construir_interfaz(self):
         lbl_titulo = ttk.Label(self, text="EduTask", style="Titulo.TLabel")
@@ -54,9 +79,9 @@ class LoginView(ttk.Frame):
 
         # --- REGISTRAMOS LOS VALIDADORES ---
         # El '%P' representa el valor que tendrá el campo si aceptamos la tecla presionada
-        self.cmd_nombre = (self.register(self.validar_longitud), '%P', '50')
-        self.cmd_correo = (self.register(self.validar_longitud), '%P', '100')
-        self.cmd_pass = (self.register(self.validar_longitud), '%P', '64')
+        self.cmd_nombre = (self.register(self.validar_entrada), '%P', '50', 'nombre')
+        self.cmd_correo = (self.register(self.validar_entrada), '%P', '100', 'correo')
+        self.cmd_pass = (self.register(self.validar_entrada), '%P', '64', 'pass')
         # -----------------------------------
 
         self.notebook = ttk.Notebook(self)
@@ -215,8 +240,8 @@ class LoginView(ttk.Frame):
         btn_cerrar.pack(pady=10)
 
     def procesar_login(self):
-        correo = self.login_correo.get().strip()
-        password = self.login_pass.get().strip()
+        correo = self.sanitizar_texto(self.login_correo.get())
+        password = self.sanitizar_texto(self.login_pass.get())
 
         if not correo or not password:
             messagebox.showwarning("Campos vacíos", "Por favor ingresa tu correo y contraseña.")
@@ -265,10 +290,10 @@ class LoginView(ttk.Frame):
         self.login_pass.config(state="normal")
 
     def procesar_registro(self):
-        nombre = self.reg_nombre.get().strip()
-        correo = self.reg_correo.get().strip()
-        password = self.reg_pass.get().strip()
-        confirmacion = self.reg_pass_conf.get().strip()
+        nombre = self.sanitizar_texto(self.reg_nombre.get())
+        correo = self.sanitizar_texto(self.reg_correo.get())
+        password = self.sanitizar_texto(self.reg_pass.get())
+        confirmacion = self.sanitizar_texto(self.reg_pass_conf.get())
 
         # Verifica que no haya campos vacíos
         if not nombre or not correo or not password or not confirmacion:
