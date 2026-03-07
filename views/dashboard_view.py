@@ -74,44 +74,66 @@ class DashboardView(ttk.Frame):
         frame_body = ttk.Frame(self)
         frame_body.pack(fill="both", expand=True)
 
-        # PANEL IZQUIERDO: Formulario
+        # PANEL IZQUIERDO
         frame_form = ttk.LabelFrame(frame_body, text="Nueva Tarea", padding="15 15 15 15")
         frame_form.pack(side="left", fill="y", padx=(0, 20))
 
         ttk.Label(frame_form, text="Título:", style="Normal.TLabel").pack(anchor="w")
-        self.entry_titulo = ttk.Entry(frame_form, width=30, font=("Segoe UI", 11))
+        self.entry_titulo = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11))
         self.entry_titulo.pack(pady=(0, 10), ipady=3)
 
         ttk.Label(frame_form, text="Descripción:", style="Normal.TLabel").pack(anchor="w")
-        self.entry_desc = tk.Text(frame_form, width=30, height=5, font=("Segoe UI", 10))
+        self.entry_desc = tk.Text(frame_form, width=32, height=6, font=("Segoe UI", 10))
         self.entry_desc.pack(pady=(0, 10))
 
         ttk.Label(frame_form, text="Fecha de Entrega:", style="Normal.TLabel").pack(anchor="w")
         self.entry_fecha = DateEntry(
             frame_form, 
-            width=28, 
+            width=30, 
             font=("Segoe UI", 11),
             background='#3498DB',
             foreground='white',
             borderwidth=1,
             date_pattern='yyyy-mm-dd'
         )
-        self.entry_fecha.pack(pady=(0, 20), ipady=3)
+        self.entry_fecha.pack(pady=(0, 15), ipady=3)
 
         ttk.Label(frame_form, text="Link de Imagen (Opcional):", style="Normal.TLabel").pack(anchor="w")
-        self.entry_link_img = ttk.Entry(frame_form, width=30, font=("Segoe UI", 11))
-        self.entry_link_img.pack(pady=(0, 20), ipady=3)
+        self.entry_link_img = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11))
+        self.entry_link_img.pack(pady=(0, 25), ipady=3)
 
         btn_agregar = ttk.Button(frame_form, text="Agregar Tarea", style="Principal.TButton", command=self.agregar_tarea)
         btn_agregar.pack(fill="x")
 
-        # PANEL DERECHO: Tabla de Tareas (Treeview)
-        frame_tabla = ttk.Frame(frame_body)
-        frame_tabla.pack(side="right", fill="both", expand=True)
+        # PANEL DERECHO
+        frame_derecho = ttk.Frame(frame_body)
+        frame_derecho.pack(side="right", fill="both", expand=True)
+
+        frame_acciones = ttk.Frame(frame_derecho)
+        frame_acciones.pack(side="bottom", fill="x", pady=(10, 0))
+
+        btn_completar = ttk.Button(frame_acciones, text="Marcar como Completada", style="Exito.TButton", command=self.completar_tarea)
+        btn_completar.pack(side="left", padx=(0, 10))
+
+        btn_eliminar = ttk.Button(frame_acciones, text="Eliminar Tarea", style="Peligro.TButton", command=self.eliminar_tarea)
+        btn_eliminar.pack(side="left")
+
+        frame_tabla_scroll = ttk.Frame(frame_derecho)
+        frame_tabla_scroll.pack(side="top", fill="both", expand=True)
+
+        scrollbar_y = ttk.Scrollbar(frame_tabla_scroll, orient="vertical")
+        scrollbar_y.pack(side="right", fill="y")
 
         columnas = ("titulo", "descripcion", "fecha", "estado")
-        self.tabla = ttk.Treeview(frame_tabla, columns=columnas, show="tree headings", selectmode="browse")
-        
+        self.tabla = ttk.Treeview(
+            frame_tabla_scroll, 
+            columns=columnas, 
+            show="tree headings", 
+            selectmode="browse",
+            yscrollcommand=scrollbar_y.set
+        )
+        scrollbar_y.config(command=self.tabla.yview)
+
         self.tabla.heading("#0", text="Imagen")
         self.tabla.column("#0", width=70, anchor="center")
         
@@ -120,21 +142,12 @@ class DashboardView(ttk.Frame):
         self.tabla.heading("fecha", text="Fecha de Entrega")
         self.tabla.heading("estado", text="Estado")
 
-        self.tabla.column("titulo", width=150)
-        self.tabla.column("descripcion", width=250)
-        self.tabla.column("fecha", width=120, anchor="center")
-        self.tabla.column("estado", width=100, anchor="center")
+        self.tabla.column("titulo", width=180)
+        self.tabla.column("descripcion", width=280)
+        self.tabla.column("fecha", width=130, anchor="center")
+        self.tabla.column("estado", width=110, anchor="center")
 
-        self.tabla.pack(fill="both", expand=True, pady=(0, 10))
-
-        frame_acciones = ttk.Frame(frame_tabla)
-        frame_acciones.pack(fill="x")
-
-        btn_completar = ttk.Button(frame_acciones, text="Marcar como Completada", style="Exito.TButton", command=self.completar_tarea)
-        btn_completar.pack(side="left", padx=(0, 10))
-
-        btn_eliminar = ttk.Button(frame_acciones, text="Eliminar Tarea", style="Peligro.TButton", command=self.eliminar_tarea)
-        btn_eliminar.pack(side="left")
+        self.tabla.pack(side="left", fill="both", expand=True)
 
     # --- LÓGICA DE DATOS ---
     def cargar_tareas(self):

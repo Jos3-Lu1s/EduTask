@@ -41,7 +41,7 @@ class AppWindow(tk.Tk):
         )
 
     def mostrar_dashboard(self):
-        self.geometry("950x600")
+        self.geometry("1050x650") 
         self.eval('tk::PlaceWindow . center')
         
         self.cambiar_vista(
