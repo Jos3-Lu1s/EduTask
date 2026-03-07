@@ -172,6 +172,8 @@ class DashboardView(ttk.Frame):
 
         self.tabla.pack(side="left", fill="both", expand=True)
 
+        self.tabla.bind("<Double-1>", self.abrir_modal_edicion)
+
     # --- LÓGICA DE DATOS ---
     def cargar_tareas(self):
         for item in self.tabla.get_children():
@@ -181,9 +183,12 @@ class DashboardView(ttk.Frame):
             self.imagenes_cache = {}
         self.imagenes_cache.clear()
 
+        self.tareas_actuales = {}
+
         try:
             tareas = self.db_manager.get_user_tasks(self.user['uid'])
             for t in tareas:
+                self.tareas_actuales[t['id']] = t
                 imagen_a_mostrar = self.img_fila 
 
                 enlace = t.get('image_url', "") 
@@ -299,3 +304,85 @@ class DashboardView(ttk.Frame):
         # 3. Cerramos sesión y avisamos a app_window.py
         self.auth_manager.logout_user()
         self.on_logout()
+    
+    def abrir_modal_edicion(self, event):
+        """Abre una ventana emergente para editar la tarea seleccionada."""
+        seleccion = self.tabla.selection()
+        if not seleccion:
+            return
+            
+        task_id = seleccion[0]
+        # Recuperamos todos los datos originales de la tarea
+        tarea_data = getattr(self, 'tareas_actuales', {}).get(task_id)
+        
+        if not tarea_data:
+            return
+
+        modal = tk.Toplevel(self)
+        modal.title("Editar Tarea")
+        modal.geometry("450x550")
+        modal.configure(bg="#F4F6F9")
+        modal.grab_set()
+
+        modal.bind("<Key>", self.reiniciar_temporizador, add="+")
+        modal.bind("<Button>", self.reiniciar_temporizador, add="+")
+        modal.bind("<Motion>", self.reiniciar_temporizador, add="+")
+
+        ttk.Label(modal, text="Editar Tarea", font=("Segoe UI", 16, "bold"), background="#F4F6F9").pack(pady=15)
+
+        frame_form = ttk.Frame(modal, padding=20, style="TFrame")
+        frame_form.pack(fill="both", expand=True)
+
+        # Creación y llenado de campos
+        ttk.Label(frame_form, text="Título * (Max 50):", style="Normal.TLabel").pack(anchor="w")
+        entry_titulo = ttk.Entry(frame_form, width=35, font=("Segoe UI", 11), validate="key", validatecommand=self.cmd_titulo)
+        entry_titulo.insert(0, tarea_data.get('title', ''))
+        entry_titulo.pack(pady=(0, 10), ipady=3)
+
+        ttk.Label(frame_form, text="Descripción (Opcional, Max 250):", style="Normal.TLabel").pack(anchor="w")
+        entry_desc = tk.Text(frame_form, width=35, height=5, font=("Segoe UI", 10))
+        entry_desc.insert("1.0", tarea_data.get('description', ''))
+        entry_desc.pack(pady=(0, 10))
+        entry_desc.bind("<KeyPress>", self.limitar_descripcion)
+
+        ttk.Label(frame_form, text="Fecha de Entrega *:", style="Normal.TLabel").pack(anchor="w")
+        entry_fecha = DateEntry(frame_form, width=33, font=("Segoe UI", 11), background='#3498DB', foreground='white', borderwidth=1, date_pattern='yyyy-mm-dd')
+        entry_fecha.set_date(tarea_data.get('due_date', ''))
+        entry_fecha.pack(pady=(0, 10), ipady=3)
+
+        ttk.Label(frame_form, text="Link de Imagen (Opcional, Max 300):", style="Normal.TLabel").pack(anchor="w")
+        entry_link = ttk.Entry(frame_form, width=35, font=("Segoe UI", 11), validate="key", validatecommand=self.cmd_link)
+        entry_link.insert(0, tarea_data.get('image_url', ''))
+        entry_link.pack(pady=(0, 20), ipady=3)
+
+        # Función interna para guardar los cambios
+        def guardar_cambios():
+            nuevo_titulo = entry_titulo.get().strip()
+            nueva_desc = entry_desc.get("1.0", tk.END).strip()
+            nueva_fecha = entry_fecha.get().strip()
+            nuevo_link = entry_link.get().strip()
+
+            if not nuevo_titulo or not nueva_fecha:
+                messagebox.showwarning("Campos incompletos", "El Título y la Fecha son obligatorios.", parent=modal)
+                return
+
+            datos_actualizados = {
+                "title": nuevo_titulo,
+                "description": nueva_desc,
+                "due_date": nueva_fecha,
+                "image_url": nuevo_link
+            }
+
+            try:
+                self.db_manager.update_task(task_id, datos_actualizados)
+                modal.destroy()
+                self.cargar_tareas()
+                messagebox.showinfo("Éxito", "Tarea actualizada correctamente.")
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo actualizar la tarea: {e}", parent=modal)
+
+        btn_guardar = ttk.Button(frame_form, text="Guardar Cambios", style="Principal.TButton", command=guardar_cambios)
+        btn_guardar.pack(fill="x", pady=(0, 10))
+        
+        btn_cancelar = ttk.Button(frame_form, text="Cancelar", style="Secundario.TButton", command=modal.destroy)
+        btn_cancelar.pack(fill="x")

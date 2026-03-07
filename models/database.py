@@ -47,3 +47,8 @@ class DatabaseManager:
         """Elimina permanentemente una tarea de Firestore."""
         doc_ref = self.db.collection(self.collection_name).document(task_id)
         doc_ref.delete()
+
+    def update_task(self, task_id, updated_data):
+        """Actualiza múltiples campos de una tarea existente en Firestore."""
+        doc_ref = self.db.collection(self.collection_name).document(task_id)
+        doc_ref.update(updated_data)
