@@ -57,6 +57,21 @@ class DashboardView(ttk.Frame):
             print(f"Error cargando la imagen: {e}")
             self.img_fila = None
 
+    def validar_longitud(self, nuevo_texto, longitud_maxima):
+        """Validador general para los campos Entry del formulario."""
+        return len(nuevo_texto) <= int(longitud_maxima)
+
+    def limitar_descripcion(self, event):
+        """Validador específico para el widget de texto (Descripción)."""
+        # Permitir teclas de borrado y flechas de navegación
+        teclas_control = ['BackSpace', 'Delete', 'Left', 'Right', 'Up', 'Down']
+        if event.keysym in teclas_control:
+            return
+            
+        # Si el texto ya tiene 250 o más caracteres, detenemos la acción (break)
+        if len(self.entry_desc.get("1.0", "end-1c")) >= 250:
+            return "break"
+
     def _construir_interfaz(self):
         # --- ENCABEZADO ---
         frame_header = ttk.Frame(self)
@@ -74,17 +89,22 @@ class DashboardView(ttk.Frame):
         frame_body = ttk.Frame(self)
         frame_body.pack(fill="both", expand=True)
 
+        self.cmd_titulo = (self.register(self.validar_longitud), '%P', '50')
+        self.cmd_link = (self.register(self.validar_longitud), '%P', '300')
+
         # PANEL IZQUIERDO
         frame_form = ttk.LabelFrame(frame_body, text="Nueva Tarea", padding="15 15 15 15")
         frame_form.pack(side="left", fill="y", padx=(0, 20))
 
-        ttk.Label(frame_form, text="Título:", style="Normal.TLabel").pack(anchor="w")
-        self.entry_titulo = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11))
+        ttk.Label(frame_form, text="Título (Max 50):", style="Normal.TLabel").pack(anchor="w")
+        self.entry_titulo = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11), validate="key", validatecommand=self.cmd_titulo)
         self.entry_titulo.pack(pady=(0, 10), ipady=3)
 
-        ttk.Label(frame_form, text="Descripción:", style="Normal.TLabel").pack(anchor="w")
+        ttk.Label(frame_form, text="Descripción (Max 250):", style="Normal.TLabel").pack(anchor="w")
         self.entry_desc = tk.Text(frame_form, width=32, height=6, font=("Segoe UI", 10))
         self.entry_desc.pack(pady=(0, 10))
+
+        self.entry_desc.bind("<KeyPress>", self.limitar_descripcion)
 
         ttk.Label(frame_form, text="Fecha de Entrega:", style="Normal.TLabel").pack(anchor="w")
         self.entry_fecha = DateEntry(
@@ -98,8 +118,8 @@ class DashboardView(ttk.Frame):
         )
         self.entry_fecha.pack(pady=(0, 15), ipady=3)
 
-        ttk.Label(frame_form, text="Link de Imagen (Opcional):", style="Normal.TLabel").pack(anchor="w")
-        self.entry_link_img = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11))
+        ttk.Label(frame_form, text="Link de Imagen (Max 300):", style="Normal.TLabel").pack(anchor="w")
+        self.entry_link_img = ttk.Entry(frame_form, width=32, font=("Segoe UI", 11), validate="key", validatecommand=self.cmd_link)
         self.entry_link_img.pack(pady=(0, 25), ipady=3)
 
         btn_agregar = ttk.Button(frame_form, text="Agregar Tarea", style="Principal.TButton", command=self.agregar_tarea)

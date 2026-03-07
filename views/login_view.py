@@ -41,12 +41,23 @@ class LoginView(ttk.Frame):
 
         estilo.configure("TCheckbutton", background="#F4F6F9", font=("Segoe UI", 10))
 
+    def validar_longitud(self, nuevo_texto, longitud_maxima):
+        """Devuelve True si el texto tecleado no supera la longitud máxima."""
+        return len(nuevo_texto) <= int(longitud_maxima)
+
     def _construir_interfaz(self):
         lbl_titulo = ttk.Label(self, text="EduTask", style="Titulo.TLabel")
         lbl_titulo.pack(pady=(0, 5))
 
         lbl_subtitulo = ttk.Label(self, text="Gestor de Actividades Académicas", style="Normal.TLabel")
         lbl_subtitulo.pack(pady=(0, 20))
+
+        # --- REGISTRAMOS LOS VALIDADORES ---
+        # El '%P' representa el valor que tendrá el campo si aceptamos la tecla presionada
+        self.cmd_nombre = (self.register(self.validar_longitud), '%P', '50')
+        self.cmd_correo = (self.register(self.validar_longitud), '%P', '100')
+        self.cmd_pass = (self.register(self.validar_longitud), '%P', '64')
+        # -----------------------------------
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True)
@@ -60,61 +71,44 @@ class LoginView(ttk.Frame):
         self._construir_tab_registro(frame_registro)
 
     def _construir_tab_login(self, parent):
-        ttk.Label(parent, text="Correo Electrónico:", style="Normal.TLabel").pack(anchor="w")
-        self.login_correo = ttk.Entry(parent, font=("Segoe UI", 11), width=35)
+        ttk.Label(parent, text="Correo Electrónico (Max 100):", style="Normal.TLabel").pack(anchor="w")
+        self.login_correo = ttk.Entry(parent, font=("Segoe UI", 11), width=35, validate="key", validatecommand=self.cmd_correo)
         self.login_correo.pack(pady=(0, 15), ipady=4)
 
-        ttk.Label(parent, text="Contraseña:", style="Normal.TLabel").pack(anchor="w")
-        self.login_pass = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•")
+        ttk.Label(parent, text="Contraseña (Max 64):", style="Normal.TLabel").pack(anchor="w")
+        self.login_pass = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•", validate="key", validatecommand=self.cmd_pass)
         self.login_pass.pack(pady=(0, 5), ipady=4)
 
-        chk_mostrar_login = ttk.Checkbutton(
-            parent, 
-            text="Mostrar contraseña", 
-            variable=self.mostrar_pass_login,
-            command=self.alternar_pass_login,
-            style="TCheckbutton"
-        )
+        chk_mostrar_login = ttk.Checkbutton(parent, text="Mostrar contraseña", variable=self.mostrar_pass_login, command=self.alternar_pass_login, style="TCheckbutton")
         chk_mostrar_login.pack(anchor="w", pady=(0, 20))
 
         self.btn_login = ttk.Button(parent, text="Entrar", style="Principal.TButton", command=self.procesar_login)
         self.btn_login.pack(fill="x", pady=(0, 10))
 
     def _construir_tab_registro(self, parent):
-        ttk.Label(parent, text="Nombre Completo:", style="Normal.TLabel").pack(anchor="w")
-        self.reg_nombre = ttk.Entry(parent, font=("Segoe UI", 11), width=35)
+        ttk.Label(parent, text="Nombre Completo (Max 50):", style="Normal.TLabel").pack(anchor="w")
+        self.reg_nombre = ttk.Entry(parent, font=("Segoe UI", 11), width=35, validate="key", validatecommand=self.cmd_nombre)
         self.reg_nombre.pack(pady=(0, 10), ipady=3)
 
-        ttk.Label(parent, text="Correo Electrónico:", style="Normal.TLabel").pack(anchor="w")
-        self.reg_correo = ttk.Entry(parent, font=("Segoe UI", 11), width=35)
+        ttk.Label(parent, text="Correo Electrónico (Max 100):", style="Normal.TLabel").pack(anchor="w")
+        self.reg_correo = ttk.Entry(parent, font=("Segoe UI", 11), width=35, validate="key", validatecommand=self.cmd_correo)
         self.reg_correo.pack(pady=(0, 10), ipady=3)
 
-        ttk.Label(parent, text="Contraseña:", style="Normal.TLabel").pack(anchor="w")
-        self.reg_pass = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•")
+        ttk.Label(parent, text="Contraseña (Max 64):", style="Normal.TLabel").pack(anchor="w")
+        self.reg_pass = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•", validate="key", validatecommand=self.cmd_pass)
         self.reg_pass.pack(pady=(0, 10), ipady=3)
 
         ttk.Label(parent, text="Confirmar Contraseña:", style="Normal.TLabel").pack(anchor="w")
-        self.reg_pass_conf = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•")
+        self.reg_pass_conf = ttk.Entry(parent, font=("Segoe UI", 11), width=35, show="•", validate="key", validatecommand=self.cmd_pass)
         self.reg_pass_conf.pack(pady=(0, 5), ipady=3)
 
-        chk_mostrar_reg = ttk.Checkbutton(
-            parent, 
-            text="Mostrar contraseñas", 
-            variable=self.mostrar_pass_reg,
-            command=self.alternar_pass_reg,
-            style="TCheckbutton"
-        )
+        chk_mostrar_reg = ttk.Checkbutton(parent, text="Mostrar contraseñas", variable=self.mostrar_pass_reg, command=self.alternar_pass_reg, style="TCheckbutton")
         chk_mostrar_reg.pack(anchor="w", pady=(0, 10))
 
         frame_terminos = ttk.Frame(parent, style="TFrame")
         frame_terminos.pack(fill="x", pady=(0, 15))
 
-        chk_terminos = ttk.Checkbutton(
-            frame_terminos, 
-            text="Acepto los", 
-            variable=self.terminos_aceptados,
-            style="TCheckbutton"
-        )
+        chk_terminos = ttk.Checkbutton(frame_terminos, text="Acepto los", variable=self.terminos_aceptados, style="TCheckbutton")
         chk_terminos.pack(side="left")
 
         btn_leer_terminos = ttk.Button(frame_terminos, text="Términos y Condiciones", command=self.mostrar_terminos)
